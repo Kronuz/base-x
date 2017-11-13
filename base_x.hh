@@ -133,6 +133,27 @@ public:
 	Result decode(const std::string& encoded) const {
 		return decode<Result>(encoded.data(), encoded.size());
 	}
+
+	bool is_valid(const char* encoded, size_t encoded_size) const {
+		const char* p = encoded;
+		for (auto i = encoded_size; i; --i, ++p) {
+			auto ch = *p;
+			auto c = rev[static_cast<int>(ch)];
+			if (c == 0xff) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	template <typename T, std::size_t N>
+	bool is_valid(T (&s)[N]) const {
+		return is_valid(s, N - 1);
+	}
+
+	bool is_valid(const std::string& encoded) const {
+		return is_valid(encoded.data(), encoded.size());
+	}
 };
 
 
