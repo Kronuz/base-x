@@ -66,6 +66,7 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 Copyright (c) 2017 German Mendez Bravo (Kronuz) @ german dot mb at gmail.com
 
+
 [license-url]: https://github.com/Kronuz/base-x/blob/master/LICENSE
 [license-img]: https://img.shields.io/github/license/Kronuz/base-x.svg
 [stars-url]: https://github.com/Kronuz/base-x/stargazers
