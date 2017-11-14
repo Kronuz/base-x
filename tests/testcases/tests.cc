@@ -33,22 +33,28 @@ constexpr auto test_base58 = BaseX<>("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghi
 
 
 TEST(UUID, Encode) {
-	EXPECT_EQ(base58::standard().encode("\330\105\140\310\23\117\21\346\241\342\64\66\73\322\155\256"), "ThxCy1Ek2q6UhWQhj9CK1o");
-	EXPECT_EQ(base62::standard().encode("\330\105\140\310\23\117\21\346\241\342\64\66\73\322\155\256"), "6a630O1jrtMjCrQDyG3D3O");
+	EXPECT_EQ(base58::base58().encode("\330\105\140\310\23\117\21\346\241\342\64\66\73\322\155\256"), "ThxCy1Ek2q6UhWQhj9CK1o");
+	EXPECT_EQ(base62::base62().encode("\330\105\140\310\23\117\21\346\241\342\64\66\73\322\155\256"), "6a630O1jrtMjCrQDyG3D3O");
 }
 
 TEST(base58, Encoder) {
-	EXPECT_EQ(base58::standard().encode("Hello world!"), "2NEpo7TZRhna7vSvL");
+	EXPECT_EQ(base58::base58().encode("Hello world!"), "2NEpo7TZRhna7vSvL");
 	EXPECT_EQ(base58::gmp().decode<uint_t>("1TFvCj"), 987654321);
 	EXPECT_EQ(base58::gmp().encode(987654321), "1TFvCj");
 	EXPECT_EQ(base58::gmp().encode("Hello world!"), "1LDlk6QWOejX6rPrJ");
 }
 
 TEST(base62, Encoder) {
-	EXPECT_EQ(base62::standard().decode<uint_t>("14q60P"), 987654321);
-	EXPECT_EQ(base62::standard().encode(987654321), "14q60P");
-	EXPECT_EQ(base62::standard().encode("Hello world!"), "T8dgcjRGuYUueWht");
+	EXPECT_EQ(base62::base62().decode<uint_t>("14q60P"), 987654321);
+	EXPECT_EQ(base62::base62().encode(987654321), "14q60P");
+	EXPECT_EQ(base62::base62().encode("Hello world!"), "T8dgcjRGuYUueWht");
 	EXPECT_EQ(base62::inverted().encode("Hello world!"), "t8DGCJrgUyuUEwHT");
+}
+
+TEST(base64, Encoder) {
+	// Note Base64 encoding is NOT the same as the standard, which here should
+	// be QUJDREVGR0hJSktMTU5PUFFSU1RVVlhZWg==
+	EXPECT_EQ(base64::base64().encode("ABCDEFGHIJKLMNOPQRSTUVXYZ"), "BBQkNERUZHSElKS0xNTk9QUVJTVFVWWFla");
 }
 
 TEST(base58, ShouldEncodeAndDecodeIntegers) {
@@ -74,8 +80,8 @@ TEST(base58, ShouldEncodeAndDecodeIntegers) {
 	EXPECT_EQ(rippleDecoded, data);
 	EXPECT_EQ(flickrDecoded, data);
 
-	auto encoded = base58::standard().encode(data);
-	auto decoded = base58::standard().decode<uint_t>(encoded);
+	auto encoded = base58::base58().encode(data);
+	auto decoded = base58::base58().decode<uint_t>(encoded);
 
 	EXPECT_EQ(decoded, data);
 }

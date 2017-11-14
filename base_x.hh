@@ -160,7 +160,7 @@ public:
 // base2
 namespace base2 {
 	template <typename Integer = uint_t>
-	const BaseX<Integer>& standard() {
+	const BaseX<Integer>& base2() {
 		static constexpr auto _ = BaseX<Integer>("01", " \n\r\t");
 		return _;
 	}
@@ -169,7 +169,7 @@ namespace base2 {
 // base8
 namespace base8 {
 	template <typename Integer = uint_t>
-	const BaseX<Integer>& standard() {
+	const BaseX<Integer>& base8() {
 		static constexpr auto _ = BaseX<Integer>("01234567", " \n\r\t");
 		return _;
 	}
@@ -178,7 +178,7 @@ namespace base8 {
 // base11
 namespace base11 {
 	template <typename Integer = uint_t>
-	const BaseX<Integer>& standard() {
+	const BaseX<Integer>& base11() {
 		static constexpr auto _ = BaseX<Integer>("0123456789a", " \n\r\t", true);
 		return _;
 	}
@@ -187,7 +187,7 @@ namespace base11 {
 // base16
 namespace base16 {
 	template <typename Integer = uint_t>
-	const BaseX<Integer>& standard() {
+	const BaseX<Integer>& base16() {
 		static constexpr auto _ = BaseX<Integer>("0123456789abcdef", " \n\r\t", true);
 		return _;
 	}
@@ -196,7 +196,7 @@ namespace base16 {
 // base32
 namespace base32 {
 	template <typename Integer = uint_t>
-	const BaseX<Integer>& standard() {
+	const BaseX<Integer>& base32() {
 		static constexpr auto _ = BaseX<Integer>("0123456789ABCDEFGHJKMNPQRSTVWXYZ", " \n\r\t", true);
 		return _;
 	}
@@ -205,7 +205,7 @@ namespace base32 {
 // base36
 namespace base36 {
 	template <typename Integer = uint_t>
-	const BaseX<Integer>& standard() {
+	const BaseX<Integer>& base36() {
 		static constexpr auto _ = BaseX<Integer>("0123456789abcdefghijklmnopqrstuvwxyz", " \n\r\t", true);
 		return _;
 	}
@@ -234,7 +234,7 @@ namespace base58 {
 		return _;
 	}
 	template <typename Integer = uint_t>
-	const BaseX<Integer>& standard() {
+	const BaseX<Integer>& base58() {
 		return bitcoin<Integer>();
 	}
 }
@@ -247,7 +247,7 @@ namespace base62 {
 		return _;
 	}
 	template <typename Integer = uint_t>
-	const BaseX<Integer>& standard() {
+	const BaseX<Integer>& base62() {
 		static constexpr auto _ = BaseX<Integer>("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", " \n\r\t");
 		return _;
 	}
@@ -261,7 +261,7 @@ namespace base64 {
 		return _;
 	}
 	template <typename Integer = uint_t>
-	const BaseX<Integer>& standard() {
+	const BaseX<Integer>& base64() {
 		static constexpr auto _ = BaseX<Integer>("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", " \n\r\t");
 		return _;
 	}
@@ -270,7 +270,7 @@ namespace base64 {
 // base66
 namespace base66 {
 	template <typename Integer = uint_t>
-	const BaseX<Integer>& standard() {
+	const BaseX<Integer>& base66() {
 		static constexpr auto _ = BaseX<Integer>("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~", " \n\r\t");
 		return _;
 	}

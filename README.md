@@ -13,7 +13,7 @@ Base58
 #include <iostream>
 #include "base_x.hh"
 
-auto encoded = base58::standard().encode("Hello world!");
+auto encoded = base58::base58().encode("Hello world!");
 
 std::cout << encoded << std::endl;
 // => 2NEpo7TZRhna7vSvL
@@ -26,22 +26,22 @@ See below for a list of commonly recognized alphabets, and their respective base
 
 Base | Factory             | Alphabet
 -----|---------------------|-------------
-   2 | base2::standard()   | `01`
-   2 | base8::standard()   | `01234567`
-  11 | bas11::standard()   | `0123456789a`
-  16 | base16::standard()  | `0123456789abcdef`
-  32 | base32::standard()  | `0123456789ABCDEFGHJKMNPQRSTVWXYZ`
-  36 | base36::standard()  | `0123456789abcdefghijklmnopqrstuvwxyz`
-  58 | base58::standard()  | `123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz`
+   2 | base2::base2()      | `01`
+   2 | base8::base8()      | `01234567`
+  11 | bas11::bas11()      | `0123456789a`
+  16 | base16::base16()    | `0123456789abcdef`
+  32 | base32::base32()    | `0123456789ABCDEFGHJKMNPQRSTVWXYZ`
+  36 | base36::base36()    | `0123456789abcdefghijklmnopqrstuvwxyz`
+  58 | base58::base58()    | `123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz`
   58 | base58::bitcoin()   | `123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz`
   58 | base58::gmp()       | `0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv`
   58 | base58::ripple()    | `rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz`
   58 | base58::flickr()    | `123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ`
-  62 | base62::standard()  | `0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz`
+  62 | base62::base62()    | `0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz`
   62 | base62::inverted()  | `0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ`
-  64 | base64::standard()  | `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/`
+  64 | base64::base64()    | `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/`
   64 | base64::urlsafe()   | `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_`
-  66 | base66::standard()  | `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~`
+  66 | base66::base66()    | `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~`
 
 
 ### How it works
