@@ -1,6 +1,6 @@
 /*
 base_x.hh
-BaseX encoder/decoder (max 256 bits)
+BaseX encoder/decoder for C++
 
 Copyright (c) 2017 German Mendez Bravo (Kronuz) @ german dot mb at gmail.com
 
