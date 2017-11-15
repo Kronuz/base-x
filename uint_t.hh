@@ -64,10 +64,10 @@ to header-only and extended to arbitrary bit length.
 #if (defined(__clang__) && __has_builtin(__builtin_clzll)) || (defined(__GNUC__ ) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 3)))
 #  define HAVE____BUILTIN_CLZLL
 #endif
-#if (defined(__clang__) && __has_builtin(__builtin_addcll)) || (defined(__GNUC__ ) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 3)))
+#if (defined(__clang__) && __has_builtin(__builtin_addcll))
 #  define HAVE____BUILTIN_ADDCLL
 #endif
-#if (defined(__clang__) && __has_builtin(__builtin_subcll)) || (defined(__GNUC__ ) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 3)))
+#if (defined(__clang__) && __has_builtin(__builtin_subcll))
 #  define HAVE____BUILTIN_SUBCLL
 #endif
 
