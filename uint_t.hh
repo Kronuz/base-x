@@ -117,7 +117,7 @@ inline uint64_t addcarry(uint64_t x, uint64_t y, uint64_t c, uint64_t* result) {
 #if defined HAVE___ADDCARRY_U64
 	return _addcarry_u64(c, x, y, result);  // _addcarry_u64(carryin, x, y, *sum) -> carryout
 #elif defined HAVE____BUILTIN_ADDCLL
-	uint64_t carryout;
+	unsigned long long carryout;
 	*result = __builtin_addcll(x, y, c, &carryout);  // __builtin_addcll(x, y, carryin, *carryout) -> sum
 	return carryout;
 #elif defined HAVE____INT64_T
@@ -141,7 +141,7 @@ inline uint64_t subborrow(uint64_t x, uint64_t y, uint64_t c, uint64_t* result) 
 #if defined HAVE___SUBBORROW_U64
 	return _subborrow_u64(c, x, y, result);  // _addcarry_u64(carryin, x, y, *sum) -> carryout
 #elif defined HAVE____BUILTIN_SUBCLL
-	uint64_t carryout;
+	unsigned long long carryout;
 	*result = __builtin_subcll(x, y, c, &carryout);  // __builtin_addcll(x, y, carryin, *carryout) -> sum
 	return carryout;
 #elif defined HAVE____INT64_T
