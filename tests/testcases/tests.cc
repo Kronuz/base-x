@@ -27,9 +27,12 @@ THE SOFTWARE.
 #include "base_x.hh"
 
 
-constexpr auto test_base2 = BaseX<>("01", " \n\r\t");
-constexpr auto test_base16 = BaseX<>("0123456789abcdef", " \n\r\t");
-constexpr auto test_base58 = BaseX<>("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", " \n\r\t");
+constexpr Alphabet test_base2_alphabet("01", " \n\r\t");
+BaseX test_base2(test_base2_alphabet);
+constexpr Alphabet test_base16_alphabet("0123456789abcdef", " \n\r\t");
+BaseX test_base16(test_base16_alphabet);
+constexpr Alphabet test_base58_alphabet("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", " \n\r\t");
+BaseX test_base58(test_base58_alphabet);
 
 
 TEST(UUID, Encode) {

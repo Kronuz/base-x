@@ -38,15 +38,17 @@ to header-only and extended to arbitrary bit length.
 #ifndef __uint_t__
 #define __uint_t__
 
-#include <cassert>
+#include <array>
 #include <vector>
 #include <string>
+#include <cassert>
 #include <utility>
 #include <cstring>
 #include <cstdint>
 #include <iostream>
 #include <algorithm>
 #include <stdexcept>
+#include <functional>
 #include <type_traits>
 
 // Compatibility inlines
@@ -118,14 +120,16 @@ namespace std {  // This is probably not a good idea
 }
 
 class uint_t {
-private:
-	using                   digit             = DIGIT_T;
-	using                   half_digit        = HALF_DIGIT_T;
+public:
+	using digit = DIGIT_T;
+	using half_digit = HALF_DIGIT_T;
 
-	static constexpr std::size_t digit_octets      = sizeof(digit);          // number of octets per digit
-	static constexpr std::size_t digit_bits        = digit_octets * 8;       // number of bits per digit
-	static constexpr std::size_t half_digit_octets = sizeof(half_digit);     // number of octets per half_digit
-	static constexpr std::size_t half_digit_bits   = half_digit_octets * 8;  // number of bits per half_digit
+	static constexpr std::size_t digit_octets = sizeof(digit);             // number of octets per digit
+	static constexpr std::size_t digit_bits = digit_octets * 8;            // number of bits per digit
+	static constexpr std::size_t half_digit_octets = sizeof(half_digit);   // number of octets per half_digit
+	static constexpr std::size_t half_digit_bits = half_digit_octets * 8;  // number of bits per half_digit
+
+private:
 	static_assert(digit_octets == half_digit_octets * 2, "half_digit must be exactly half the size of digit");
 
 	static constexpr std::size_t karatsuba_cutoff = 1024 / digit_bits;
@@ -137,7 +141,12 @@ private:
 	std::vector<digit>& _value;
 	bool _carry;
 
+public:
 	// Window to vector (uses _begin and _end)
+
+	void reserve(std::size_t sz) {
+		_value.reserve(sz + _begin);
+	}
 
 	std::size_t grow(std::size_t n) {
 		auto cc = _value.capacity();
@@ -148,47 +157,21 @@ private:
 		return cc;
 	}
 
-	void prepend(std::size_t sz, const digit& val) {
-		auto min = std::min(_begin, sz);
-		if (min) {
-			std::fill(_value.begin() + _begin - min, _value.begin() + _begin, val);
-			_begin -= min;
-			sz -= min;
-		}
-		if (sz) {
-			// _begin should be 0 in here
-			auto csz = _value.size();
-			auto isz = grow(csz + sz) - csz;
-			_value.insert(_value.begin(), isz, val);
-			_begin = isz - sz;
-		}
-	}
-
-	void append(const digit& val) {
-		grow(_value.size() + 1);
-		_value.push_back(val);
-	}
-
-	void append(const uint_t& val) {
-		grow(_value.size() + val.size());
-		_value.insert(_value.end(), val.begin(), val.end());
-	}
-
-	void reserve(std::size_t sz) {
-		_value.reserve(sz + _begin);
-	}
-
 	void resize(std::size_t sz) {
+		grow(sz + _begin);
 		_value.resize(sz + _begin);
 	}
 
 	void resize(std::size_t sz, const digit& c) {
+		grow(sz + _begin);
 		_value.resize(sz + _begin, c);
 	}
 
 	void clear() {
 		_value.clear();
 		_begin = 0;
+		_end = 0;
+		_carry = false;
 	}
 
 	digit* data() noexcept {
@@ -201,6 +184,47 @@ private:
 
 	std::size_t size() const noexcept {
 		return _end ? _end - _begin : _value.size() - _begin;
+	}
+
+	void prepend(std::size_t sz, const digit& c) {
+		auto min = std::min(_begin, sz);
+		if (min) {
+			std::fill(_value.begin() + _begin - min, _value.begin() + _begin, c);
+			_begin -= min;
+			sz -= min;
+		}
+		if (sz) {
+			// _begin should be 0 in here
+			auto csz = _value.size();
+			auto isz = grow(csz + sz) - csz;
+			_value.insert(_value.begin(), isz, c);
+			_begin = isz - sz;
+		}
+	}
+
+	void prepend(const digit& c) {
+		prepend(1, c);
+	}
+
+	void prepend(const uint_t& num) {
+		prepend(num.size(), 0);
+		std::copy(num.begin(), num.end(), begin());
+	}
+
+	void append(std::size_t sz, const digit& c) {
+		auto nsz = _value.size() + sz;
+		grow(nsz);
+		_value.resize(nsz, c);
+	}
+
+	void append(const digit& c) {
+		grow(_value.size() + 1);
+		_value.push_back(c);
+	}
+
+	void append(const uint_t& num) {
+		grow(_value.size() + num.size());
+		_value.insert(end(), num.begin(), num.end());
 	}
 
 	std::vector<digit>::iterator begin() noexcept {
@@ -251,6 +275,7 @@ private:
 		return *rbegin();
 	}
 
+private:
 	// Optimized primitives for operations
 
 	template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
@@ -618,16 +643,6 @@ private:
 
 	// Helper functions
 
-	static const uint_t uint_0() {
-		static uint_t uint_0(0);
-		return uint_0;
-	}
-
-	static const uint_t uint_1() {
-		static uint_t uint_1(1);
-		return uint_1;
-	}
-
 	void trim(digit mask = 0) {
 		auto rit = rbegin();
 		auto rit_e = rend();
@@ -643,60 +658,8 @@ private:
 		resize(rit_e - rit_f); // shrink
 	}
 
-	static const unsigned& base_bits(int base) {
-		static const unsigned _[256] = {
-			0, 1, 0, 2, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 4,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6,
-
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7,
-
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8,
-		};
-		return _[base - 1];
-	}
-
-	static const unsigned& base_size(int base) {
-		// math.ceil(64 / math.log2(base)
-		static const unsigned _[256] = {
-			0, 64, 41, 32, 28, 25, 23, 22, 21, 20, 19, 18, 18, 17, 17, 16,
-			16, 16, 16, 15, 15, 15, 15, 14, 14, 14, 14, 14, 14, 14, 13, 13,
-			13, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12, 12, 12,
-			12, 12, 12, 12, 12, 12, 12, 12, 11, 11, 11, 11, 11, 11, 11, 11,
-
-			11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
-			11, 11, 11, 11, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-			10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-			10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-
-			10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  9,  9,  9,  9,  9,  9,
-			9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,
-			9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,
-			9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,
-
-			9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,
-			9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,
-			9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,
-			9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  8,
-		};
-		return _[base - 1];
-	}
-
 	static const uint_t& ord(int chr) {
-		// 0123456789abcdefghijklmnopqrstuvwxyz -> (0 - 35)
-		static const uint_t _[256] = {
+		static const std::array<const uint_t, 256> _ = {{
 			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -716,15 +679,94 @@ private:
 			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		};
+		}};;
 		return _[chr];
 	}
 
+
 	static const char& chr(int ord) {
-		static const char _[256] = "0123456789abcdefghijklmnopqrstuvwxyz";
+		static const std::array<const char, 256> _ = {{
+			'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b',
+			'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
+			'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+		}};
 		return _[ord];
 	}
 
+	static constexpr std::array<const unsigned, 256> _base_bits = {{
+		0, 1, 0, 2, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 4,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6,
+
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7,
+
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8,
+	}};
+
+	static constexpr std::array<const unsigned, 256> _base_size = {{
+		0, 64, 41, 32, 28, 25, 23, 22, 21, 20, 19, 18, 18, 17, 17, 16,
+		16, 16, 16, 15, 15, 15, 15, 14, 14, 14, 14, 14, 14, 14, 13, 13,
+		13, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12, 12, 12,
+		12, 12, 12, 12, 12, 12, 12, 12, 11, 11, 11, 11, 11, 11, 11, 11,
+
+		11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+		11, 11, 11, 11, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+		10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+		10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+
+		10, 10, 10, 10, 10, 10, 10, 10, 10, 10,  9,  9,  9,  9,  9,  9,
+		9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,
+		9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,
+		9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,
+
+		9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,
+		9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,
+		9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,
+		9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  8,
+	}};
+
+public:
+	static constexpr const unsigned constexpr_base_bits(int base) {
+		return _base_bits[base - 1];
+	}
+
+	static const unsigned& base_bits(int base) {
+		static const std::array<const unsigned, 256> _ = _base_bits;
+		return _[base - 1];
+	}
+
+	static constexpr const unsigned constexpr_base_size(int base) {
+		return _base_size[base - 1];
+	}
+
+	static const unsigned& base_size(int base) {
+		static const std::array<const unsigned, 256> _ = _base_size;
+		return _[base - 1];
+	}
+
+	static const uint_t uint_0() {
+		static uint_t uint_0(0);
+		return uint_0;
+	}
+
+	static const uint_t uint_1() {
+		static uint_t uint_1(1);
+		return uint_1;
+	}
+
+private:
 	// Public Implementation
 #ifdef UINT_T_PUBLIC_IMPLEMENTATION
 public:
@@ -2005,95 +2047,56 @@ public:
 		return 0;
 	}
 
-	static uint_t strtouint(const char* bytes, std::size_t sz, int base) {
-		uint_t result;
-
-		if (base >= 2 && base <= 36) {
-			uint_t bits = base_bits(base);
-			if (bits) {
-				for (; sz; --sz, ++bytes) {
-					auto d = ord(static_cast<int>(*bytes));
-					if (d >= base) {
-						throw std::runtime_error("Error: Not a digit in base " + std::to_string(base) + ": '" + std::string(1, *bytes) + "'");
-					}
-					result = (result << bits) | d;
-				}
-			} else {
-				for (; sz; --sz, ++bytes) {
-					auto d = ord(static_cast<int>(*bytes));
-					if (d >= base) {
-						throw std::runtime_error("Error: Not a digit in base " + std::to_string(base) + ": '" + std::string(1, *bytes) + "'");
-					}
-					result = (result * base) + d;
-				}
-			}
-		} else if (sz && base == 256) {
-			auto value_size = sz / digit_octets;
-			auto value_padding = sz % digit_octets;
-			if (value_padding) {
-				value_padding = digit_octets - value_padding;
-				++value_size;
-			}
-			result.resize(value_size); // grow (no initialization)
-			*result.begin() = 0; // initialize value
-			auto ptr = reinterpret_cast<char*>(result.data());
-			std::copy(bytes, bytes + sz, ptr + value_padding);
-			std::reverse(ptr, ptr + value_size * digit_octets);
-		} else {
-			throw std::runtime_error("Error: Cannot convert from base " + std::to_string(base));
-		}
-
-		return result;
-	}
-
 	// Get string representation of value
 	template <typename Result = std::string>
-	Result str(int base = 10) const {
-		if (base >= 2 && base <= 36) {
+	Result str(int alphabet_base = 10) const {
+		auto num_sz = size();
+		if (alphabet_base >= 2 && alphabet_base <= 36) {
 			Result result;
-			if (size()) {
-				auto bits = base_bits(base);
-				result.reserve(size() * base_size(base));
-				if (bits) {
-					digit mask = base - 1;
+			if (num_sz) {
+				auto alphabet_base_bits = base_bits(alphabet_base);
+				result.reserve(num_sz * base_size(alphabet_base));
+				if (alphabet_base_bits) {
+					digit alphabet_base_mask = alphabet_base - 1;
 					auto shift = 0;
 					auto ptr = reinterpret_cast<const half_digit*>(data());
 					digit num = *ptr++;
 					num <<= half_digit_bits;
-					for (auto i = size() * 2 - 1; i; --i) {
+					for (auto i = num_sz * 2 - 1; i; --i) {
 						num >>= half_digit_bits;
 						num |= (static_cast<digit>(*ptr++) << half_digit_bits);
 						do {
-							result.push_back(chr(static_cast<int>((num >> shift) & mask)));
-							shift += bits;
+							result.push_back(chr(static_cast<int>((num >> shift) & alphabet_base_mask)));
+							shift += alphabet_base_bits;
 						} while (shift <= half_digit_bits);
 						shift -= half_digit_bits;
 					}
 					num >>= (shift + half_digit_bits);
 					while (num) {
-						result.push_back(chr(static_cast<int>(num & mask)));
-						num >>= bits;
+						result.push_back(chr(static_cast<int>(num & alphabet_base_mask)));
+						num >>= alphabet_base_bits;
 					}
-					auto rit_f = std::find_if(result.rbegin(), result.rend(), [](const char& c) { return c != '0'; });
+					auto s = chr(0);
+					auto rit_f = std::find_if(result.rbegin(), result.rend(), [s](const char& c) { return c != s; });
 					result.resize(result.rend() - rit_f); // shrink
 				} else {
 					uint_t quotient = *this;
-					uint_t remainder = uint_0();
-					uint_t uint_base = base;
+					uint_t uint_base = alphabet_base;
 					do {
-						divmod(quotient, remainder, quotient, uint_base);
-						result.push_back(chr(static_cast<int>(remainder)));
+						auto r = quotient.divmod(uint_base);
+						result.push_back(chr(static_cast<int>(r.second)));
+						quotient = std::move(r.first);
 					} while (quotient);
 				}
 				std::reverse(result.begin(), result.end());
 			} else {
-				result.push_back('0');
+				result.push_back(chr(0));
 			}
 			return result;
-		} else if (base == 256) {
-			if (size()) {
+		} else if (alphabet_base == 256) {
+			if (num_sz) {
 				auto ptr = reinterpret_cast<const char*>(data());
-				Result result(ptr, ptr + size() * digit_octets);
+				Result result(ptr, ptr + num_sz * digit_octets);
 				auto rit_f = std::find_if(result.rbegin(), result.rend(), [](const char& c) { return c; });
 				result.resize(result.rend() - rit_f); // shrink
 				std::reverse(result.begin(), result.end());
@@ -2106,6 +2109,47 @@ public:
 		} else {
 			throw std::invalid_argument("Base must be in the range [2, 36]");
 		}
+	}
+
+	static uint_t strtouint(const char* encoded, std::size_t encoded_size, int alphabet_base) {
+		uint_t result;
+
+		if (alphabet_base >= 2 && alphabet_base <= 36) {
+			uint_t alphabet_base_bits = base_bits(alphabet_base);
+			if (alphabet_base_bits) {
+				for (; encoded_size; --encoded_size, ++encoded) {
+					auto d = ord(static_cast<int>(*encoded));
+					if (d >= alphabet_base) {
+						throw std::runtime_error("Error: Not a digit in base " + std::to_string(alphabet_base) + ": '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
+					}
+					result = (result << alphabet_base_bits) | d;
+				}
+			} else {
+				for (; encoded_size; --encoded_size, ++encoded) {
+					auto d = ord(static_cast<int>(*encoded));
+					if (d >= alphabet_base) {
+						throw std::runtime_error("Error: Not a digit in base " + std::to_string(alphabet_base) + ": '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
+					}
+					result = (result * alphabet_base) + d;
+				}
+			}
+		} else if (encoded_size && alphabet_base == 256) {
+			auto value_size = encoded_size / digit_octets;
+			auto value_padding = encoded_size % digit_octets;
+			if (value_padding) {
+				value_padding = digit_octets - value_padding;
+				++value_size;
+			}
+			result.resize(value_size); // grow (no initialization)
+			*result.begin() = 0; // initialize value
+			auto ptr = reinterpret_cast<char*>(result.data());
+			std::copy(encoded, encoded + encoded_size, ptr + value_padding);
+			std::reverse(ptr, ptr + value_size * digit_octets);
+		} else {
+			throw std::runtime_error("Error: Cannot convert from base " + std::to_string(alphabet_base));
+		}
+
+		return result;
 	}
 
 	template <typename Result = std::string>
