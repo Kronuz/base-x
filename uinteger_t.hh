@@ -1,5 +1,5 @@
 /*
-uint_t.hh
+uinteger_t.hh
 An arbitrary precision unsigned integer type for C++
 
 Copyright (c) 2017 German Mendez Bravo (Kronuz) @ german dot mb at gmail.com
@@ -110,16 +110,16 @@ to header-only and extended to arbitrary bit length.
 #define HALF_DIGIT_T   std::uint32_t
 #endif
 
-class uint_t;
+class uinteger_t;
 
 namespace std {  // This is probably not a good idea
-	// Give uint_t type traits
-	template <> struct is_arithmetic <uint_t> : std::true_type {};
-	template <> struct is_integral   <uint_t> : std::true_type {};
-	template <> struct is_unsigned   <uint_t> : std::true_type {};
+	// Give uinteger_t type traits
+	template <> struct is_arithmetic <uinteger_t> : std::true_type {};
+	template <> struct is_integral   <uinteger_t> : std::true_type {};
+	template <> struct is_unsigned   <uinteger_t> : std::true_type {};
 }
 
-class uint_t {
+class uinteger_t {
 public:
 	using digit = DIGIT_T;
 	using half_digit = HALF_DIGIT_T;
@@ -236,7 +236,7 @@ public:
 		prepend(1, c);
 	}
 
-	void prepend(const uint_t& num) {
+	void prepend(const uinteger_t& num) {
 		prepend(num.size(), 0);
 		std::copy(num.begin(), num.end(), begin());
 	}
@@ -257,7 +257,7 @@ public:
 		append(1, c);
 	}
 
-	void append(const uint_t& num) {
+	void append(const uinteger_t& num) {
 		auto sz = num.size();
 		append(sz, 0);
 		std::copy(num.begin(), num.end(), end() - sz);
@@ -693,8 +693,8 @@ private:
 		resize(rit_e - rit_f); // shrink
 	}
 
-	static const uint_t& ord(int chr) {
-		static const std::array<const uint_t, 256> _ = {{
+	static const uinteger_t& ord(int chr) {
+		static const std::array<const uinteger_t, 256> _ = {{
 			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -791,13 +791,13 @@ public:
 		return _[base - 1];
 	}
 
-	static const uint_t uint_0() {
-		static uint_t uint_0(0);
+	static const uinteger_t uint_0() {
+		static uinteger_t uint_0(0);
 		return uint_0;
 	}
 
-	static const uint_t uint_1() {
-		static uint_t uint_1(1);
+	static const uinteger_t uint_1() {
+		static uinteger_t uint_1(1);
 		return uint_1;
 	}
 
@@ -806,7 +806,7 @@ private:
 #ifdef UINT_T_PUBLIC_IMPLEMENTATION
 public:
 #endif
-	static uint_t& bitwise_and(uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& bitwise_and(uinteger_t& lhs, const uinteger_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
@@ -828,7 +828,7 @@ public:
 		return lhs;
 	}
 
-	static uint_t& bitwise_and(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& bitwise_and(uinteger_t& result, const uinteger_t& lhs, const uinteger_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
@@ -866,13 +866,13 @@ public:
 		return result;
 	}
 
-	static uint_t bitwise_and(const uint_t& lhs, const uint_t& rhs) {
-		uint_t result;
+	static uinteger_t bitwise_and(const uinteger_t& lhs, const uinteger_t& rhs) {
+		uinteger_t result;
 		bitwise_and(result, lhs, rhs);
 		return result;
 	}
 
-	static uint_t& bitwise_or(uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& bitwise_or(uinteger_t& lhs, const uinteger_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
@@ -894,7 +894,7 @@ public:
 		return lhs;
 	}
 
-	static uint_t& bitwise_or(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& bitwise_or(uinteger_t& result, const uinteger_t& lhs, const uinteger_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
@@ -931,13 +931,13 @@ public:
 		result.trim();
 		return result;
 	}
-	static uint_t bitwise_or(const uint_t& lhs, const uint_t& rhs) {
-		uint_t result;
+	static uinteger_t bitwise_or(const uinteger_t& lhs, const uinteger_t& rhs) {
+		uinteger_t result;
 		bitwise_or(result, lhs, rhs);
 		return result;
 	}
 
-	static uint_t& bitwise_xor(uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& bitwise_xor(uinteger_t& lhs, const uinteger_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
@@ -959,7 +959,7 @@ public:
 		return lhs;
 	}
 
-	static uint_t& bitwise_xor(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& bitwise_xor(uinteger_t& result, const uinteger_t& lhs, const uinteger_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
@@ -997,13 +997,13 @@ public:
 		return result;
 	}
 
-	static uint_t bitwise_xor(const uint_t& lhs, const uint_t& rhs) {
-		uint_t result;
+	static uinteger_t bitwise_xor(const uinteger_t& lhs, const uinteger_t& rhs) {
+		uinteger_t result;
 		bitwise_xor(result, lhs, rhs);
 		return result;
 	}
 
-	static uint_t& bitwise_inv(uint_t& lhs) {
+	static uinteger_t& bitwise_inv(uinteger_t& lhs) {
 		auto lhs_sz = lhs.size();
 
 		auto b = lhs.bits();
@@ -1026,7 +1026,7 @@ public:
 		return lhs;
 	}
 
-	static uint_t& bitwise_inv(uint_t& result, const uint_t& lhs) {
+	static uinteger_t& bitwise_inv(uinteger_t& result, const uinteger_t& lhs) {
 		auto lhs_sz = lhs.size();
 
 		auto b = lhs.bits();
@@ -1054,21 +1054,21 @@ public:
 		return result;
 	}
 
-	static uint_t bitwise_inv(const uint_t& lhs) {
-		uint_t result;
+	static uinteger_t bitwise_inv(const uinteger_t& lhs) {
+		uinteger_t result;
 		bitwise_inv(result, lhs);
 		return result;
 	}
 
-	static uint_t& bitwise_lshift(uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& bitwise_lshift(uinteger_t& lhs, const uinteger_t& rhs) {
 		if (!rhs) {
 			return lhs;
 		}
 
-		uint_t shifts_q;
-		uint_t shifts_r;
+		uinteger_t shifts_q;
+		uinteger_t shifts_r;
 		auto _digit_bits = digit_bits;
-		auto uint_digit_bits = uint_t(_digit_bits);
+		auto uint_digit_bits = uinteger_t(_digit_bits);
 		divmod(shifts_q, shifts_r, rhs, uint_digit_bits);
 		std::size_t shifts = static_cast<std::size_t>(shifts_q);
 		std::size_t shift = static_cast<std::size_t>(shifts_r);
@@ -1095,7 +1095,7 @@ public:
 		return lhs;
 	}
 
-	static uint_t& bitwise_lshift(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& bitwise_lshift(uinteger_t& result, const uinteger_t& lhs, const uinteger_t& rhs) {
 		if (&result._value == &lhs._value) {
 			bitwise_lshift(result, rhs);
 			return result;
@@ -1107,10 +1107,10 @@ public:
 
 		auto lhs_sz = lhs.size();
 
-		uint_t shifts_q;
-		uint_t shifts_r;
+		uinteger_t shifts_q;
+		uinteger_t shifts_r;
 		auto _digit_bits = digit_bits;
-		auto uint_digit_bits = uint_t(_digit_bits);
+		auto uint_digit_bits = uinteger_t(_digit_bits);
 		divmod(shifts_q, shifts_r, rhs, uint_digit_bits);
 		std::size_t shifts = static_cast<std::size_t>(shifts_q);
 		std::size_t shift = static_cast<std::size_t>(shifts_r);
@@ -1148,13 +1148,13 @@ public:
 		return result;
 	}
 
-	static uint_t bitwise_lshift(const uint_t& lhs, const uint_t& rhs) {
-		uint_t result;
+	static uinteger_t bitwise_lshift(const uinteger_t& lhs, const uinteger_t& rhs) {
+		uinteger_t result;
 		bitwise_lshift(result, lhs, rhs);
 		return result;
 	}
 
-	static uint_t& bitwise_rshift(uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& bitwise_rshift(uinteger_t& lhs, const uinteger_t& rhs) {
 		if (!rhs) {
 			return lhs;
 		}
@@ -1162,14 +1162,14 @@ public:
 		auto lhs_sz = lhs.size();
 
 		auto _digit_bits = digit_bits;
-		if (compare(rhs, uint_t(lhs_sz * _digit_bits)) >= 0) {
+		if (compare(rhs, uinteger_t(lhs_sz * _digit_bits)) >= 0) {
 			lhs = uint_0();
 			return lhs;
 		}
 
-		uint_t shifts_q;
-		uint_t shifts_r;
-		auto uint_digit_bits = uint_t(_digit_bits);
+		uinteger_t shifts_q;
+		uinteger_t shifts_r;
+		auto uint_digit_bits = uinteger_t(_digit_bits);
 		divmod(shifts_q, shifts_r, rhs, uint_digit_bits);
 		std::size_t shifts = static_cast<std::size_t>(shifts_q);
 		std::size_t shift = static_cast<std::size_t>(shifts_r);
@@ -1192,7 +1192,7 @@ public:
 		return lhs;
 	}
 
-	static uint_t& bitwise_rshift(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& bitwise_rshift(uinteger_t& result, const uinteger_t& lhs, const uinteger_t& rhs) {
 		if (&result._value == &lhs._value) {
 			bitwise_lshift(result, rhs);
 			return result;
@@ -1205,14 +1205,14 @@ public:
 		auto lhs_sz = lhs.size();
 
 		auto _digit_bits = digit_bits;
-		if (compare(rhs, uint_t(lhs_sz * _digit_bits)) >= 0) {
+		if (compare(rhs, uinteger_t(lhs_sz * _digit_bits)) >= 0) {
 			result = uint_0();
 			return result;
 		}
 
-		uint_t shifts_q;
-		uint_t shifts_r;
-		auto uint_digit_bits = uint_t(_digit_bits);
+		uinteger_t shifts_q;
+		uinteger_t shifts_r;
+		auto uint_digit_bits = uinteger_t(_digit_bits);
 		divmod(shifts_q, shifts_r, rhs, uint_digit_bits);
 		std::size_t shifts = static_cast<std::size_t>(shifts_q);
 		std::size_t shift = static_cast<std::size_t>(shifts_r);
@@ -1248,13 +1248,13 @@ public:
 		return result;
 	}
 
-	static uint_t bitwise_rshift(const uint_t& lhs, const uint_t& rhs) {
-		uint_t result;
+	static uinteger_t bitwise_rshift(const uinteger_t& lhs, const uinteger_t& rhs) {
+		uinteger_t result;
 		bitwise_rshift(result, lhs, rhs);
 		return result;
 	}
 
-	static int compare(const uint_t& lhs, const uint_t& rhs) {
+	static int compare(const uinteger_t& lhs, const uinteger_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
@@ -1276,7 +1276,7 @@ public:
 		return 0;
 	}
 
-	static uint_t& long_add(uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& long_add(uinteger_t& lhs, const uinteger_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
@@ -1324,7 +1324,7 @@ public:
 		return lhs;
 	}
 
-	static uint_t& long_add(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& long_add(uinteger_t& result, const uinteger_t& lhs, const uinteger_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
@@ -1375,7 +1375,7 @@ public:
 		return result;
 	}
 
-	static uint_t& add(uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& add(uinteger_t& lhs, const uinteger_t& rhs) {
 		// First try saving some calculations:
 		if (!rhs) {
 			return lhs;
@@ -1388,7 +1388,7 @@ public:
 		return long_add(lhs, rhs);
 	}
 
-	static uint_t& add(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& add(uinteger_t& result, const uinteger_t& lhs, const uinteger_t& rhs) {
 		// First try saving some calculations:
 		if (!rhs) {
 			result = lhs;
@@ -1402,13 +1402,13 @@ public:
 		return long_add(result, lhs, rhs);
 	}
 
-	static uint_t add(const uint_t& lhs, const uint_t& rhs) {
-		uint_t result;
+	static uinteger_t add(const uinteger_t& lhs, const uinteger_t& rhs) {
+		uinteger_t result;
 		add(result, lhs, rhs);
 		return result;
 	}
 
-	static uint_t& long_sub(uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& long_sub(uinteger_t& lhs, const uinteger_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
@@ -1448,7 +1448,7 @@ public:
 		return lhs;
 	}
 
-	static uint_t& long_sub(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& long_sub(uinteger_t& result, const uinteger_t& lhs, const uinteger_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
@@ -1492,7 +1492,7 @@ public:
 		return result;
 	}
 
-	static uint_t& sub(uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& sub(uinteger_t& lhs, const uinteger_t& rhs) {
 		// First try saving some calculations:
 		if (!rhs) {
 			return lhs;
@@ -1501,7 +1501,7 @@ public:
 		return long_sub(lhs, rhs);
 	}
 
-	static uint_t& sub(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& sub(uinteger_t& result, const uinteger_t& lhs, const uinteger_t& rhs) {
 		// First try saving some calculations:
 		if (!rhs) {
 			result = lhs;
@@ -1511,22 +1511,22 @@ public:
 		return long_sub(result, lhs, rhs);
 	}
 
-	static uint_t sub(const uint_t& lhs, const uint_t& rhs) {
-		uint_t result;
+	static uinteger_t sub(const uinteger_t& lhs, const uinteger_t& rhs) {
+		uinteger_t result;
 		sub(result, lhs, rhs);
 		return result;
 	}
 
 	// Single word long multiplication
 	// Fastests, but ONLY for single sized rhs
-	static uint_t& single_mult(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& single_mult(uinteger_t& result, const uinteger_t& lhs, const uinteger_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
 		assert(rhs_sz == 1);
 		auto n = rhs.front();
 
-		uint_t tmp;
+		uinteger_t tmp;
 		tmp.resize(lhs_sz + 1, 0);
 
 		auto it_lhs = lhs.begin();
@@ -1549,7 +1549,7 @@ public:
 		return result;
 	}
 
-	static uint_t& long_mult(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& long_mult(uinteger_t& result, const uinteger_t& lhs, const uinteger_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
@@ -1562,7 +1562,7 @@ public:
 			return single_mult(result, rhs, lhs);
 		}
 
-		uint_t tmp;
+		uinteger_t tmp;
 		tmp.resize(lhs_sz + rhs_sz, 0);
 
 		auto it_lhs = lhs.begin();
@@ -1602,9 +1602,9 @@ public:
 	}
 
 	// A helper for Karatsuba multiplication to split a number in two, at n.
-	static std::pair<const uint_t, const uint_t> karatsuba_mult_split(const uint_t& num, std::size_t n) {
-		const uint_t a(num, num._begin, num._begin + n);
-		const uint_t b(num, num._begin + n, num._end);
+	static std::pair<const uinteger_t, const uinteger_t> karatsuba_mult_split(const uinteger_t& num, std::size_t n) {
+		const uinteger_t a(num, num._begin, num._begin + n);
+		const uinteger_t b(num, num._begin + n, num._end);
 		return std::make_pair(std::move(a), std::move(b));
 	}
 
@@ -1612,7 +1612,7 @@ public:
 	// Karatsuba would pay off *if* the inputs had balanced sizes.
 	// View rhs as a sequence of slices, each with lhs.size() digits,
 	// and multiply the slices by lhs, one at a time.
-	static uint_t& karatsuba_lopsided_mult(uint_t& result, const uint_t& lhs, const uint_t& rhs, std::size_t cutoff) {
+	static uinteger_t& karatsuba_lopsided_mult(uinteger_t& result, const uinteger_t& lhs, const uinteger_t& rhs, std::size_t cutoff) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
@@ -1622,14 +1622,14 @@ public:
 		auto rhs_begin = rhs._begin;
 		std::size_t shift = 0;
 
-		uint_t r;
+		uinteger_t r;
 		while (rhs_sz > 0) {
 			// Multiply the next slice of rhs by lhs and add into result:
 			auto slice_size = std::min(lhs_sz, rhs_sz);
-			const uint_t rhs_slice(rhs, rhs_begin, rhs_begin + slice_size);
-			uint_t p;
+			const uinteger_t rhs_slice(rhs, rhs_begin, rhs_begin + slice_size);
+			uinteger_t p;
 			karatsuba_mult(p, lhs, rhs_slice, cutoff);
-			uint_t rs(r, shift, 0);
+			uinteger_t rs(r, shift, 0);
 			add(rs, rs, p);
 			shift += slice_size;
 			rhs_sz -= slice_size;
@@ -1641,7 +1641,7 @@ public:
 	}
 
 	// Karatsuba multiplication
-	static uint_t& karatsuba_mult(uint_t& result, const uint_t& lhs, const uint_t& rhs, std::size_t cutoff = 1) {
+	static uinteger_t& karatsuba_mult(uinteger_t& result, const uinteger_t& lhs, const uinteger_t& rhs, std::size_t cutoff = 1) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
@@ -1688,12 +1688,12 @@ public:
 		const auto& D = rhs_pair.first;  // lo
 
 		// Get the pieces:
-		uint_t AC;
+		uinteger_t AC;
 		karatsuba_mult(AC, A, C, cutoff);
 
-		uint_t BD;
+		uinteger_t BD;
 		karatsuba_mult(BD, B, D, cutoff);
-		uint_t AD_BC, AB, CD;
+		uinteger_t AD_BC, AB, CD;
 		karatsuba_mult(AD_BC, A + B, C + D, cutoff);
 		AD_BC -= AC;
 		AD_BC -= BD;
@@ -1704,7 +1704,7 @@ public:
 		BD.append(AC);
 
 		// And add AD_BC to the middle: (AC           BD) + (    AD + BC    ):
-		uint_t BDs(BD, shift, 0);
+		uinteger_t BDs(BD, shift, 0);
 		add(BDs, BDs, AD_BC);
 
 		result = std::move(BD);
@@ -1714,12 +1714,12 @@ public:
 		return result;
 	}
 
-	static uint_t& mult(uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& mult(uinteger_t& lhs, const uinteger_t& rhs) {
 		// Hard to see how this could have a further optimized implementation.
 		return mult(lhs, lhs, rhs);
 	}
 
-	static uint_t& mult(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
+	static uinteger_t& mult(uinteger_t& result, const uinteger_t& lhs, const uinteger_t& rhs) {
 		// First try saving some calculations:
 		if (!lhs || !rhs) {
 			result = uint_0();
@@ -1737,15 +1737,15 @@ public:
 		return karatsuba_mult(result, lhs, rhs, karatsuba_cutoff);
 	}
 
-	static uint_t mult(const uint_t& lhs, const uint_t& rhs) {
-		uint_t result;
+	static uinteger_t mult(const uinteger_t& lhs, const uinteger_t& rhs) {
+		uinteger_t result;
 		mult(result, lhs, rhs);
 		return result;
 	}
 
 	// Single word long division
 	// Fastests, but ONLY for single sized rhs
-	static std::pair<std::reference_wrapper<uint_t>, std::reference_wrapper<uint_t>> single_divmod(uint_t& quotient, uint_t& remainder, const uint_t& lhs, const uint_t& rhs) {
+	static std::pair<std::reference_wrapper<uinteger_t>, std::reference_wrapper<uinteger_t>> single_divmod(uinteger_t& quotient, uinteger_t& remainder, const uinteger_t& lhs, const uinteger_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
@@ -1772,9 +1772,9 @@ public:
 	}
 
 	// Implementation of Knuth's Algorithm D
-	static std::pair<std::reference_wrapper<uint_t>, std::reference_wrapper<uint_t>> knuth_divmod(uint_t& quotient, uint_t& remainder, const uint_t& lhs, const uint_t& rhs) {
-		uint_t v(lhs);
-		uint_t w(rhs);
+	static std::pair<std::reference_wrapper<uinteger_t>, std::reference_wrapper<uinteger_t>> knuth_divmod(uinteger_t& quotient, uinteger_t& remainder, const uinteger_t& lhs, const uinteger_t& rhs) {
+		uinteger_t v(lhs);
+		uinteger_t w(rhs);
 
 		auto v_size = v.size();
 		auto w_size = w.size();
@@ -1782,7 +1782,7 @@ public:
 
 		// D1. normalize: shift rhs left so that its top digit is >= 63 bits.
 		// shift lhs left by the same amount. Results go into w and v.
-		auto d = uint_t(digit_bits - _bits(w.back()));
+		auto d = uinteger_t(digit_bits - _bits(w.back()));
 		v <<= d;
 		w <<= d;
 
@@ -1867,7 +1867,7 @@ public:
 		return std::make_pair(std::ref(quotient), std::ref(remainder));
 	}
 
-	static std::pair<std::reference_wrapper<uint_t>, std::reference_wrapper<uint_t>> divmod(uint_t& quotient, uint_t& remainder, const uint_t& lhs, const uint_t& rhs) {
+	static std::pair<std::reference_wrapper<uinteger_t>, std::reference_wrapper<uinteger_t>> divmod(uinteger_t& quotient, uinteger_t& remainder, const uinteger_t& lhs, const uinteger_t& rhs) {
 		// First try saving some calculations:
 		if (!rhs) {
 			throw std::domain_error("Error: division or modulus by 0");
@@ -1905,9 +1905,9 @@ public:
 		return knuth_divmod(quotient, remainder, lhs, rhs);
 	}
 
-	static std::pair<uint_t, uint_t> divmod(const uint_t& lhs, const uint_t& rhs) {
-		uint_t quotient;
-		uint_t remainder;
+	static std::pair<uinteger_t, uinteger_t> divmod(const uinteger_t& lhs, const uinteger_t& rhs) {
+		uinteger_t quotient;
+		uinteger_t remainder;
 		divmod(quotient, remainder, lhs, rhs);
 		return std::make_pair(std::move(quotient), std::move(remainder));
 	}
@@ -1915,47 +1915,47 @@ public:
 private:
 	// Constructors
 
-	template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
+	template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
 	void _uint_t(const T& value) {
 		append(static_cast<digit>(value));
 	}
 
-	template <typename T, typename... Args, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
+	template <typename T, typename... Args, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
 	void _uint_t(const T& value, Args... args) {
 		_uint_t(args...);
 		append(static_cast<digit>(value));
 	}
 
 	// This constructor creates a window view of the _value
-	uint_t(const uint_t& o, std::size_t begin, std::size_t end) :
+	uinteger_t(const uinteger_t& o, std::size_t begin, std::size_t end) :
 		_begin(begin),
 		_end(end),
 		_value(o._value),
 		_carry(o._carry) { }
 
 public:
-	uint_t() :
+	uinteger_t() :
 		_begin(0),
 		_end(0),
 		_value(_value_instance),
 		_carry(false) { }
 
-	uint_t(const uint_t& o) :
+	uinteger_t(const uinteger_t& o) :
 		_begin(0),
 		_end(0),
 		_value_instance(o.begin(), o.end()),
 		_value(_value_instance),
 		_carry(o._carry) { }
 
-	uint_t(uint_t&& o) :
+	uinteger_t(uinteger_t&& o) :
 		_begin(std::move(o._begin)),
 		_end(std::move(o._end)),
 		_value_instance(std::move(o._value_instance)),
 		_value(_value_instance),
 		_carry(std::move(o._carry)) { }
 
-	template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-	uint_t(const T& value) :
+	template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+	uinteger_t(const T& value) :
 		_begin(0),
 		_end(0),
 		_value(_value_instance),
@@ -1965,8 +1965,8 @@ public:
 		}
 	}
 
-	template <typename T, typename... Args, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-	uint_t(const T& value, Args... args) :
+	template <typename T, typename... Args, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+	uinteger_t(const T& value, Args... args) :
 		_begin(0),
 		_end(0),
 		_value(_value_instance),
@@ -1976,8 +1976,8 @@ public:
 		trim();
 	}
 
-	template <typename T, typename... Args, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-	uint_t(std::initializer_list<T> list) :
+	template <typename T, typename... Args, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+	uinteger_t(std::initializer_list<T> list) :
 		_begin(0),
 		_end(0),
 		_value(_value_instance),
@@ -1990,28 +1990,28 @@ public:
 	}
 
 	template <typename T, std::size_t N>
-	explicit uint_t(T (&s)[N], int base=10) :
-		uint_t(s, N - 1, base) { }
+	explicit uinteger_t(T (&s)[N], int base=10) :
+		uinteger_t(s, N - 1, base) { }
 
-	explicit uint_t(const char* bytes, std::size_t sz, int base) :
-		uint_t(strtouint(bytes, sz, base)) { }
+	explicit uinteger_t(const char* bytes, std::size_t sz, int base) :
+		uinteger_t(strtouint(bytes, sz, base)) { }
 
 	template <typename T>
-	explicit uint_t(const std::vector<T>& bytes, int base=10) :
-		uint_t(bytes.data(), bytes.size(), base) { }
+	explicit uinteger_t(const std::vector<T>& bytes, int base=10) :
+		uinteger_t(bytes.data(), bytes.size(), base) { }
 
-	explicit uint_t(const std::string& bytes, int base=10) :
-		uint_t(bytes.data(), bytes.size(), base) { }
+	explicit uinteger_t(const std::string& bytes, int base=10) :
+		uinteger_t(bytes.data(), bytes.size(), base) { }
 
 	// Assignment Operator
-	uint_t& operator=(const uint_t& o) {
+	uinteger_t& operator=(const uinteger_t& o) {
 		_begin = 0;
 		_end = 0;
 		_value = container(o.begin(), o.end());
 		_carry = o._carry;
 		return *this;
 	}
-	uint_t& operator=(uint_t&& o) {
+	uinteger_t& operator=(uinteger_t&& o) {
 		_begin = std::move(o._begin);
 		_end = std::move(o._end);
 		_value_instance = std::move(o._value_instance);
@@ -2055,52 +2055,52 @@ public:
 	}
 
 	// Bitwise Operators
-	uint_t operator&(const uint_t& rhs) const {
+	uinteger_t operator&(const uinteger_t& rhs) const {
 		return bitwise_and(*this, rhs);
 	}
 
-	uint_t& operator&=(const uint_t& rhs) {
+	uinteger_t& operator&=(const uinteger_t& rhs) {
 		return bitwise_and(*this, rhs);
 	}
 
-	uint_t operator|(const uint_t& rhs) const {
+	uinteger_t operator|(const uinteger_t& rhs) const {
 		return bitwise_or(*this, rhs);
 	}
 
-	uint_t& operator|=(const uint_t& rhs) {
+	uinteger_t& operator|=(const uinteger_t& rhs) {
 		return bitwise_or(*this, rhs);
 	}
 
-	uint_t operator^(const uint_t& rhs) const {
+	uinteger_t operator^(const uinteger_t& rhs) const {
 		return bitwise_xor(*this, rhs);
 	}
 
-	uint_t& operator^=(const uint_t& rhs) {
+	uinteger_t& operator^=(const uinteger_t& rhs) {
 		return bitwise_xor(*this, rhs);
 	}
 
-	uint_t operator~() const {
+	uinteger_t operator~() const {
 		return bitwise_inv(*this);
 	}
 
-	uint_t inv() {
+	uinteger_t inv() {
 		return bitwise_inv(*this);
 	}
 
 	// Bit Shift Operators
-	uint_t operator<<(const uint_t& rhs) const {
+	uinteger_t operator<<(const uinteger_t& rhs) const {
 		return bitwise_lshift(*this, rhs);
 	}
 
-	uint_t& operator<<=(const uint_t& rhs) {
+	uinteger_t& operator<<=(const uinteger_t& rhs) {
 		return bitwise_lshift(*this, rhs);
 	}
 
-	uint_t operator>>(const uint_t& rhs) const {
+	uinteger_t operator>>(const uinteger_t& rhs) const {
 		return bitwise_rshift(*this, rhs);
 	}
 
-	uint_t& operator>>=(const uint_t& rhs) {
+	uinteger_t& operator>>=(const uinteger_t& rhs) {
 		return bitwise_rshift(*this, rhs);
 	}
 
@@ -2109,119 +2109,119 @@ public:
 		return !static_cast<bool>(*this);
 	}
 
-	bool operator&&(const uint_t& rhs) const {
+	bool operator&&(const uinteger_t& rhs) const {
 		return static_cast<bool>(*this) && rhs;
 	}
 
-	bool operator||(const uint_t& rhs) const {
+	bool operator||(const uinteger_t& rhs) const {
 		return static_cast<bool>(*this) || rhs;
 	}
 
 	// Comparison Operators
-	bool operator==(const uint_t& rhs) const {
+	bool operator==(const uinteger_t& rhs) const {
 		return compare(*this, rhs) == 0;
 	}
 
-	bool operator!=(const uint_t& rhs) const {
+	bool operator!=(const uinteger_t& rhs) const {
 		return compare(*this, rhs) != 0;
 	}
 
-	bool operator>(const uint_t& rhs) const {
+	bool operator>(const uinteger_t& rhs) const {
 		return compare(*this, rhs) > 0;
 	}
 
-	bool operator<(const uint_t& rhs) const {
+	bool operator<(const uinteger_t& rhs) const {
 		return compare(*this, rhs) < 0;
 	}
 
-	bool operator>=(const uint_t& rhs) const {
+	bool operator>=(const uinteger_t& rhs) const {
 		return compare(*this, rhs) >= 0;
 	}
 
-	bool operator<=(const uint_t& rhs) const {
+	bool operator<=(const uinteger_t& rhs) const {
 		return compare(*this, rhs) <= 0;
 	}
 
 	// Arithmetic Operators
-	uint_t operator+(const uint_t& rhs) const {
+	uinteger_t operator+(const uinteger_t& rhs) const {
 		return add(*this, rhs);
 	}
 
-	uint_t& operator+=(const uint_t& rhs) {
+	uinteger_t& operator+=(const uinteger_t& rhs) {
 		return add(*this, rhs);
 	}
 
-	uint_t operator-(const uint_t& rhs) const {
+	uinteger_t operator-(const uinteger_t& rhs) const {
 		return sub(*this, rhs);
 	}
 
-	uint_t& operator-=(const uint_t& rhs) {
+	uinteger_t& operator-=(const uinteger_t& rhs) {
 		return sub(*this, rhs);
 	}
 
-	uint_t operator*(const uint_t& rhs) const {
+	uinteger_t operator*(const uinteger_t& rhs) const {
 		return mult(*this, rhs);
 	}
 
-	uint_t& operator*=(const uint_t& rhs) {
+	uinteger_t& operator*=(const uinteger_t& rhs) {
 		return mult(*this, rhs);
 	}
 
-	std::pair<uint_t, uint_t> divmod(const uint_t& rhs) const {
+	std::pair<uinteger_t, uinteger_t> divmod(const uinteger_t& rhs) const {
 		return divmod(*this, rhs);
 	}
 
-	uint_t operator/(const uint_t& rhs) const {
+	uinteger_t operator/(const uinteger_t& rhs) const {
 		return divmod(*this, rhs).first;
 	}
 
-	uint_t& operator/=(const uint_t& rhs) {
-		uint_t quotient;
-		uint_t remainder;
+	uinteger_t& operator/=(const uinteger_t& rhs) {
+		uinteger_t quotient;
+		uinteger_t remainder;
 		divmod(quotient, remainder, *this, rhs);
 		*this = std::move(quotient);
 		return *this;
 	}
 
-	uint_t operator%(const uint_t& rhs) const {
+	uinteger_t operator%(const uinteger_t& rhs) const {
 		return divmod(*this, rhs).second;
 	}
 
-	uint_t& operator%=(const uint_t& rhs) {
-		uint_t quotient;
-		uint_t remainder;
+	uinteger_t& operator%=(const uinteger_t& rhs) {
+		uinteger_t quotient;
+		uinteger_t remainder;
 		divmod(quotient, remainder, *this, rhs);
 		*this = std::move(remainder);
 		return *this;
 	}
 
 	// Increment Operator
-	uint_t& operator++() {
+	uinteger_t& operator++() {
 		return *this += uint_1();
 	}
-	uint_t operator++(int) {
-		uint_t temp(*this);
+	uinteger_t operator++(int) {
+		uinteger_t temp(*this);
 		++*this;
 		return temp;
 	}
 
 	// Decrement Operator
-	uint_t& operator--() {
+	uinteger_t& operator--() {
 		return *this -= uint_1();
 	}
-	uint_t operator--(int) {
-		uint_t temp(*this);
+	uinteger_t operator--(int) {
+		uinteger_t temp(*this);
 		--*this;
 		return temp;
 	}
 
 	// Nothing done since promotion doesn't work here
-	uint_t operator+() const {
+	uinteger_t operator+() const {
 		return *this;
 	}
 
 	// two's complement
-	uint_t operator-() const {
+	uinteger_t operator-() const {
 		return uint_0() - *this;
 	}
 
@@ -2280,8 +2280,8 @@ public:
 					auto rit_f = std::find_if(result.rbegin(), result.rend(), [s](const char& c) { return c != s; });
 					result.resize(result.rend() - rit_f); // shrink
 				} else {
-					uint_t quotient = *this;
-					uint_t uint_base = alphabet_base;
+					uinteger_t quotient = *this;
+					uinteger_t uint_base = alphabet_base;
 					do {
 						auto r = quotient.divmod(uint_base);
 						result.push_back(chr(static_cast<int>(r.second)));
@@ -2311,11 +2311,11 @@ public:
 		}
 	}
 
-	static uint_t strtouint(const char* encoded, std::size_t encoded_size, int alphabet_base) {
-		uint_t result;
+	static uinteger_t strtouint(const char* encoded, std::size_t encoded_size, int alphabet_base) {
+		uinteger_t result;
 
 		if (alphabet_base >= 2 && alphabet_base <= 36) {
-			uint_t alphabet_base_bits = base_bits(alphabet_base);
+			uinteger_t alphabet_base_bits = base_bits(alphabet_base);
 			if (alphabet_base_bits) {
 				for (; encoded_size; --encoded_size, ++encoded) {
 					auto d = ord(static_cast<int>(*encoded));
@@ -2375,10 +2375,10 @@ public:
 
 namespace std {  // This is probably not a good idea
 	// Make it work with std::string()
-	inline std::string to_string(uint_t& num) {
+	inline std::string to_string(uinteger_t& num) {
 		return num.str();
 	}
-	inline const std::string to_string(const uint_t& num) {
+	inline const std::string to_string(const uinteger_t& num) {
 		return num.str();
 	}
 };
@@ -2387,141 +2387,141 @@ namespace std {  // This is probably not a good idea
 // If the output is not a bool, casts to type T
 
 // Bitwise Operators
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-uint_t operator&(const T& lhs, const uint_t& rhs) {
-	return uint_t(lhs) & rhs;
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+uinteger_t operator&(const T& lhs, const uinteger_t& rhs) {
+	return uinteger_t(lhs) & rhs;
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-T& operator&=(T& lhs, const uint_t& rhs) {
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+T& operator&=(T& lhs, const uinteger_t& rhs) {
 	return lhs = static_cast<T>(rhs & lhs);
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-uint_t operator|(const T& lhs, const uint_t& rhs) {
-	return uint_t(lhs) | rhs;
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+uinteger_t operator|(const T& lhs, const uinteger_t& rhs) {
+	return uinteger_t(lhs) | rhs;
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-T& operator|=(T& lhs, const uint_t& rhs) {
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+T& operator|=(T& lhs, const uinteger_t& rhs) {
 	return lhs = static_cast<T>(rhs | lhs);
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-uint_t operator^(const T& lhs, const uint_t& rhs) {
-	return uint_t(lhs) ^ rhs;
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+uinteger_t operator^(const T& lhs, const uinteger_t& rhs) {
+	return uinteger_t(lhs) ^ rhs;
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-T& operator^=(T& lhs, const uint_t& rhs) {
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+T& operator^=(T& lhs, const uinteger_t& rhs) {
 	return lhs = static_cast<T>(rhs ^ lhs);
 }
 
 // Bitshift operators
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-inline uint_t operator<<(T& lhs, const uint_t& rhs) {
-	return uint_t(lhs) << rhs;
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+inline uinteger_t operator<<(T& lhs, const uinteger_t& rhs) {
+	return uinteger_t(lhs) << rhs;
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-T& operator<<=(T& lhs, const uint_t& rhs) {
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+T& operator<<=(T& lhs, const uinteger_t& rhs) {
 	return lhs = static_cast<T>(lhs << rhs);
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-inline uint_t operator>>(T& lhs, const uint_t& rhs) {
-	return uint_t(lhs) >> rhs;
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+inline uinteger_t operator>>(T& lhs, const uinteger_t& rhs) {
+	return uinteger_t(lhs) >> rhs;
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-T& operator>>=(T& lhs, const uint_t& rhs) {
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+T& operator>>=(T& lhs, const uinteger_t& rhs) {
 	return lhs = static_cast<T>(lhs >> rhs);
 }
 
 // Comparison Operators
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-bool operator==(const T& lhs, const uint_t& rhs) {
-	return uint_t(lhs) == rhs;
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+bool operator==(const T& lhs, const uinteger_t& rhs) {
+	return uinteger_t(lhs) == rhs;
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-bool operator!=(const T& lhs, const uint_t& rhs) {
-	return uint_t(lhs) != rhs;
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+bool operator!=(const T& lhs, const uinteger_t& rhs) {
+	return uinteger_t(lhs) != rhs;
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-bool operator>(const T& lhs, const uint_t& rhs) {
-	return uint_t(lhs) > rhs;
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+bool operator>(const T& lhs, const uinteger_t& rhs) {
+	return uinteger_t(lhs) > rhs;
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-bool operator<(const T& lhs, const uint_t& rhs) {
-	return uint_t(lhs) < rhs;
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+bool operator<(const T& lhs, const uinteger_t& rhs) {
+	return uinteger_t(lhs) < rhs;
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-bool operator>=(const T& lhs, const uint_t& rhs) {
-	return uint_t(lhs) >= rhs;
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+bool operator>=(const T& lhs, const uinteger_t& rhs) {
+	return uinteger_t(lhs) >= rhs;
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-bool operator<=(const T& lhs, const uint_t& rhs) {
-	return uint_t(lhs) <= rhs;
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+bool operator<=(const T& lhs, const uinteger_t& rhs) {
+	return uinteger_t(lhs) <= rhs;
 }
 
 // Arithmetic Operators
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-uint_t operator+(const T& lhs, const uint_t& rhs) {
-	return uint_t(lhs) + rhs;
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+uinteger_t operator+(const T& lhs, const uinteger_t& rhs) {
+	return uinteger_t(lhs) + rhs;
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-T& operator+=(T& lhs, const uint_t& rhs) {
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+T& operator+=(T& lhs, const uinteger_t& rhs) {
 	return lhs = static_cast<T>(rhs + lhs);
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-uint_t operator-(const T& lhs, const uint_t& rhs) {
-	return uint_t(lhs) - rhs;
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+uinteger_t operator-(const T& lhs, const uinteger_t& rhs) {
+	return uinteger_t(lhs) - rhs;
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-T& operator-=(T& lhs, const uint_t& rhs) {
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+T& operator-=(T& lhs, const uinteger_t& rhs) {
 	return lhs = static_cast<T>(lhs - rhs);
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-uint_t operator*(const T& lhs, const uint_t& rhs) {
-	return uint_t(lhs) * rhs;
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+uinteger_t operator*(const T& lhs, const uinteger_t& rhs) {
+	return uinteger_t(lhs) * rhs;
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-T& operator*=(T& lhs, const uint_t& rhs) {
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+T& operator*=(T& lhs, const uinteger_t& rhs) {
 	return lhs = static_cast<T>(rhs * lhs);
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-uint_t operator/(const T& lhs, const uint_t& rhs) {
-	return uint_t(lhs) / rhs;
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+uinteger_t operator/(const T& lhs, const uinteger_t& rhs) {
+	return uinteger_t(lhs) / rhs;
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-T& operator/=(T& lhs, const uint_t& rhs) {
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+T& operator/=(T& lhs, const uinteger_t& rhs) {
 	return lhs = static_cast<T>(lhs / rhs);
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-uint_t operator%(const T& lhs, const uint_t& rhs) {
-	return uint_t(lhs) % rhs;
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+uinteger_t operator%(const T& lhs, const uinteger_t& rhs) {
+	return uinteger_t(lhs) % rhs;
 }
 
-template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
-T& operator%=(T& lhs, const uint_t& rhs) {
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uinteger_t>>::value>>
+T& operator%=(T& lhs, const uinteger_t& rhs) {
 	return lhs = static_cast<T>(lhs % rhs);
 }
 
 // IO Operator
-inline std::ostream& operator<<(std::ostream& stream, const uint_t& rhs) {
+inline std::ostream& operator<<(std::ostream& stream, const uinteger_t& rhs) {
 	if (stream.flags() & stream.oct) {
 		stream << rhs.str(8);
 	} else if (stream.flags() & stream.dec) {

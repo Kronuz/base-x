@@ -29,7 +29,7 @@ THE SOFTWARE.
 #include <array>
 #include <algorithm>
 
-#include "uint_t.hh"
+#include "uinteger_t.hh"
 
 class Alphabet {
 	unsigned char _ord[256];
@@ -39,15 +39,15 @@ public:
 	const size_t base;
 	const unsigned base_size;
 	const unsigned base_bits;
-	const uint_t::digit base_mask;
+	const uinteger_t::digit base_mask;
 
 	template <typename A, std::size_t alphabet_size, typename I, std::size_t ignored_size>
 	constexpr Alphabet(A (&alphabet)[alphabet_size], I (&ignored)[ignored_size], bool ignore_case = false) :
 		_ord(),
 		_chr(),
 		base(alphabet_size - 1),
-		base_size(uint_t::constexpr_base_size(base)),
-		base_bits(uint_t::constexpr_base_bits(base)),
+		base_size(uinteger_t::constexpr_base_size(base)),
+		base_bits(uinteger_t::constexpr_base_bits(base)),
 		base_mask(base - 1)
 	{
 		for (auto i = 256; i; --i) {
@@ -72,8 +72,8 @@ public:
 		}
 	}
 
-	std::array<uint_t, 256> ord() {
-		std::array<uint_t, 256> _;
+	std::array<uinteger_t, 256> ord() {
+		std::array<uinteger_t, 256> _;
 		for (int i = 0; i < 256; ++i) {
 			_[i] = _ord[i];
 		}
@@ -92,7 +92,7 @@ public:
 class BaseX {
 	Alphabet alphabet;
 
-	std::array<uint_t, 256> _ord;
+	std::array<uinteger_t, 256> _ord;
 	std::array<char, 256> _chr;
 
 public:
@@ -105,31 +105,31 @@ public:
 		return _chr[ord];
 	}
 
-	const uint_t& ord(int chr) const {
+	const uinteger_t& ord(int chr) const {
 		return _ord[chr];
 	}
 
 	// Get string representation of value
 	template <typename Result = std::string>
-	void encode(Result& result, const uint_t& num) const {
+	void encode(Result& result, const uinteger_t& num) const {
 		auto num_sz = num.size();
 		if (num_sz) {
 			result.reserve(num_sz * alphabet.base_size);
 			if (alphabet.base_bits) {
 				std::size_t shift = 0;
-				auto ptr = reinterpret_cast<const uint_t::half_digit*>(num.data());
-				uint_t::digit num = *ptr++;
-				num <<= uint_t::half_digit_bits;
+				auto ptr = reinterpret_cast<const uinteger_t::half_digit*>(num.data());
+				uinteger_t::digit num = *ptr++;
+				num <<= uinteger_t::half_digit_bits;
 				for (auto i = num_sz * 2 - 1; i; --i) {
-					num >>= uint_t::half_digit_bits;
-					num |= (static_cast<uint_t::digit>(*ptr++) << uint_t::half_digit_bits);
+					num >>= uinteger_t::half_digit_bits;
+					num |= (static_cast<uinteger_t::digit>(*ptr++) << uinteger_t::half_digit_bits);
 					do {
 						result.push_back(chr(static_cast<int>((num >> shift) & alphabet.base_mask)));
 						shift += alphabet.base_bits;
-					} while (shift <= uint_t::half_digit_bits);
-					shift -= uint_t::half_digit_bits;
+					} while (shift <= uinteger_t::half_digit_bits);
+					shift -= uinteger_t::half_digit_bits;
 				}
-				num >>= (shift + uint_t::half_digit_bits);
+				num >>= (shift + uinteger_t::half_digit_bits);
 				while (num) {
 					result.push_back(chr(static_cast<int>(num & alphabet.base_mask)));
 					num >>= alphabet.base_bits;
@@ -138,8 +138,8 @@ public:
 				auto rit_f = std::find_if(result.rbegin(), result.rend(), [s](const char& c) { return c != s; });
 				result.resize(result.rend() - rit_f); // shrink
 			} else {
-				uint_t quotient = num;
-				uint_t uint_base = alphabet.base;
+				uinteger_t quotient = num;
+				uinteger_t uint_base = alphabet.base;
 				do {
 					auto r = quotient.divmod(uint_base);
 					result.push_back(chr(static_cast<int>(r.second)));
@@ -153,7 +153,7 @@ public:
 	}
 
 	template <typename Result = std::string>
-	Result encode(uint_t num) const {
+	Result encode(uinteger_t num) const {
 		Result result;
 		encode(result, num);
 		return result;
@@ -161,13 +161,13 @@ public:
 
 	template <typename Result = std::string>
 	void encode(Result& result, const char* bytes, size_t size) const {
-		encode(result, uint_t(bytes, size, 256));
+		encode(result, uinteger_t(bytes, size, 256));
 	}
 
 	template <typename Result = std::string>
 	Result encode(const char* bytes, size_t size) const {
 		Result result;
-		encode(result, uint_t(bytes, size, 256));
+		encode(result, uinteger_t(bytes, size, 256));
 		return result;
 	}
 
@@ -195,7 +195,7 @@ public:
 		return result;
 	}
 
-	void decode(uint_t& result, const char* encoded, std::size_t encoded_size) const {
+	void decode(uinteger_t& result, const char* encoded, std::size_t encoded_size) const {
 		if (alphabet.base_bits) {
 			for (; encoded_size; --encoded_size, ++encoded) {
 				auto d = ord(static_cast<int>(*encoded));
@@ -217,7 +217,7 @@ public:
 
 	template <typename Result, typename = typename std::enable_if<!std::is_integral<Result>::value>::type>
 	void decode(Result& result, const char* encoded, size_t encoded_size) const {
-		uint_t num;
+		uinteger_t num;
 		decode(num, encoded, encoded_size);
 		result = num.template str<Result>(256);
 	}
@@ -276,7 +276,7 @@ public:
 
 // base2
 namespace base2 {
-	template <typename uint_t = uint_t>
+	template <typename uinteger_t = uinteger_t>
 	const BaseX& base2() {
 		constexpr Alphabet alphabet("01", " \n\r\t");
 		static BaseX encoder(alphabet);
@@ -286,7 +286,7 @@ namespace base2 {
 
 // base8
 namespace base8 {
-	template <typename uint_t = uint_t>
+	template <typename uinteger_t = uinteger_t>
 	const BaseX& base8() {
 		constexpr Alphabet alphabet("01234567", " \n\r\t");
 		static BaseX encoder(alphabet);
@@ -296,7 +296,7 @@ namespace base8 {
 
 // base11
 namespace base11 {
-	template <typename uint_t = uint_t>
+	template <typename uinteger_t = uinteger_t>
 	const BaseX& base11() {
 		constexpr Alphabet alphabet("0123456789a", " \n\r\t", true);
 		static BaseX encoder(alphabet);
@@ -306,7 +306,7 @@ namespace base11 {
 
 // base16
 namespace base16 {
-	template <typename uint_t = uint_t>
+	template <typename uinteger_t = uinteger_t>
 	const BaseX& base16() {
 		constexpr Alphabet alphabet("0123456789abcdef", " \n\r\t", true);
 		static BaseX encoder(alphabet);
@@ -316,7 +316,7 @@ namespace base16 {
 
 // base32
 namespace base32 {
-	template <typename uint_t = uint_t>
+	template <typename uinteger_t = uinteger_t>
 	const BaseX& base32() {
 		constexpr Alphabet alphabet("0123456789ABCDEFGHJKMNPQRSTVWXYZ", " \n\r\t", true);
 		static BaseX encoder(alphabet);
@@ -326,7 +326,7 @@ namespace base32 {
 
 // base36
 namespace base36 {
-	template <typename uint_t = uint_t>
+	template <typename uinteger_t = uinteger_t>
 	const BaseX& base36() {
 		constexpr Alphabet alphabet("0123456789abcdefghijklmnopqrstuvwxyz", " \n\r\t", true);
 		static BaseX encoder(alphabet);
@@ -336,45 +336,45 @@ namespace base36 {
 
 // base58
 namespace base58 {
-	template <typename uint_t = uint_t>
+	template <typename uinteger_t = uinteger_t>
 	const BaseX& gmp() {
 		constexpr Alphabet alphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv", " \n\r\t");
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
-	template <typename uint_t = uint_t>
+	template <typename uinteger_t = uinteger_t>
 	const BaseX& bitcoin() {
 		constexpr Alphabet alphabet("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", " \n\r\t");
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
-	template <typename uint_t = uint_t>
+	template <typename uinteger_t = uinteger_t>
 	const BaseX& ripple() {
 		constexpr Alphabet alphabet("rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz", " \n\r\t");
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
-	template <typename uint_t = uint_t>
+	template <typename uinteger_t = uinteger_t>
 	const BaseX& flickr() {
 		constexpr Alphabet alphabet("123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ", " \n\r\t");
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
-	template <typename uint_t = uint_t>
+	template <typename uinteger_t = uinteger_t>
 	const BaseX& base58() {
-		return bitcoin<uint_t>();
+		return bitcoin<uinteger_t>();
 	}
 }
 
 // base62
 namespace base62 {
-	template <typename uint_t = uint_t>
+	template <typename uinteger_t = uinteger_t>
 	const BaseX& inverted() {
 		constexpr Alphabet alphabet("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", " \n\r\t");
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
-	template <typename uint_t = uint_t>
+	template <typename uinteger_t = uinteger_t>
 	const BaseX& base62() {
 		constexpr Alphabet alphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", " \n\r\t");
 		static BaseX encoder(alphabet);
@@ -384,13 +384,13 @@ namespace base62 {
 
 // base64
 namespace base64 {
-	template <typename uint_t = uint_t>
+	template <typename uinteger_t = uinteger_t>
 	const BaseX& urlsafe() {
 		constexpr Alphabet alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", " \n\r\t");
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
-	template <typename uint_t = uint_t>
+	template <typename uinteger_t = uinteger_t>
 	const BaseX& base64() {
 		constexpr Alphabet alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", " \n\r\t");
 		static BaseX encoder(alphabet);
@@ -400,7 +400,7 @@ namespace base64 {
 
 // base66
 namespace base66 {
-	template <typename uint_t = uint_t>
+	template <typename uinteger_t = uinteger_t>
 	const BaseX& base66() {
 		constexpr Alphabet alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~", " \n\r\t");
 		static BaseX encoder(alphabet);
