@@ -738,7 +738,7 @@ private:
 	}};
 
 public:
-	static constexpr const unsigned constexpr_base_bits(int base) {
+	static constexpr unsigned constexpr_base_bits(int base) {
 		return _base_bits[base - 1];
 	}
 
@@ -747,7 +747,7 @@ public:
 		return _[base - 1];
 	}
 
-	static constexpr const unsigned constexpr_base_size(int base) {
+	static constexpr unsigned constexpr_base_size(int base) {
 		return _base_size[base - 1];
 	}
 
@@ -2096,7 +2096,7 @@ public:
 				result.reserve(num_sz * base_size(alphabet_base));
 				if (alphabet_base_bits) {
 					digit alphabet_base_mask = alphabet_base - 1;
-					auto shift = 0;
+					std::size_t shift = 0;
 					auto ptr = reinterpret_cast<const half_digit*>(data());
 					digit num = *ptr++;
 					num <<= half_digit_bits;

@@ -116,7 +116,7 @@ public:
 		if (num_sz) {
 			result.reserve(num_sz * alphabet.base_size);
 			if (alphabet.base_bits) {
-				auto shift = 0;
+				std::size_t shift = 0;
 				auto ptr = reinterpret_cast<const uint_t::half_digit*>(num.data());
 				uint_t::digit num = *ptr++;
 				num <<= uint_t::half_digit_bits;
