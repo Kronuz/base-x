@@ -129,6 +129,8 @@ public:
 	static constexpr std::size_t half_digit_octets = sizeof(half_digit);   // number of octets per half_digit
 	static constexpr std::size_t half_digit_bits = half_digit_octets * 8;  // number of bits per half_digit
 
+	using container = std::vector<digit>;
+
 private:
 	static_assert(digit_octets == half_digit_octets * 2, "half_digit must be exactly half the size of digit");
 
@@ -137,8 +139,8 @@ private:
 
 	std::size_t _begin;
 	std::size_t _end;
-	std::vector<digit> _value_instance;
-	std::vector<digit>& _value;
+	container _value_instance;
+	container& _value;
 	bool _carry;
 
 public:
@@ -149,6 +151,8 @@ public:
 	}
 
 	std::size_t grow(std::size_t n) {
+		// expands the vector using a growth factor
+		// and returns the new capacity.
 		auto cc = _value.capacity();
 		if (n >= cc) {
 			cc = n * growth_factor;
@@ -187,14 +191,40 @@ public:
 	}
 
 	void prepend(std::size_t sz, const digit& c) {
+		// Efficiently prepend by growing backwards by growth factor
 		auto min = std::min(_begin, sz);
 		if (min) {
-			std::fill(_value.begin() + _begin - min, _value.begin() + _begin, c);
+			// If there is some space before `_begin`, we try using it first:
 			_begin -= min;
+			std::fill_n(_value.begin() + _begin, min, c);
 			sz -= min;
 		}
 		if (sz) {
-			// _begin should be 0 in here
+			assert (_begin == 0); // _begin should be 0 in here
+			// If there's still more room needed, we grow the vector:
+			// Ex.: grow using prepend(3, y)
+			//    sz = 3
+			//    _begin = 0  (B)
+			//    _end = 1  (E)
+			// initially (capacity == 12):
+			//              |xxxxxxxxxx- |
+			//              B           E
+			// after reclaiming space after `_end` (same capacity == 12):
+			//              |xxxxxxxxxx  |
+			//              B
+			//    _end = 0
+			//    csz = 10
+			// grow returns the new capacity (22)
+			//    isz = 12  (22 - 10)
+			//    _begin = 9  (12 - 3)
+			// after (capacity == (12 + 3) * 1.5 == 22):
+			//    |---------yyyxxxxxxxxxx|
+			//              B
+			if (_end) {
+				// reclaim space after `_end`
+				_value.resize(_end);
+				_end = 0;
+			}
 			auto csz = _value.size();
 			auto isz = grow(csz + sz) - csz;
 			_value.insert(_value.begin(), isz, c);
@@ -212,100 +242,93 @@ public:
 	}
 
 	void append(std::size_t sz, const digit& c) {
+		// Efficiently append by growing by growth factor
+		if (_end) {
+			// reclaim space after `_end`
+			_value.resize(_end);
+			_end = 0;
+		}
 		auto nsz = _value.size() + sz;
 		grow(nsz);
 		_value.resize(nsz, c);
 	}
 
 	void append(const digit& c) {
-		grow(_value.size() + 1);
-		_value.push_back(c);
+		append(1, c);
 	}
 
 	void append(const uint_t& num) {
-		grow(_value.size() + num.size());
-		_value.insert(end(), num.begin(), num.end());
+		auto sz = num.size();
+		append(sz, 0);
+		std::copy(num.begin(), num.end(), end() - sz);
 	}
 
-	std::vector<digit>::iterator begin() noexcept {
+	container::iterator begin() noexcept {
 		return _value.begin() + _begin;
 	}
 
-	std::vector<digit>::const_iterator begin() const noexcept {
+	container::const_iterator begin() const noexcept {
 		return _value.cbegin() + _begin;
 	}
 
-	std::vector<digit>::iterator end() noexcept {
+	container::iterator end() noexcept {
 		return _end ? _value.begin() + _end : _value.end();
 	}
 
-	std::vector<digit>::const_iterator end() const noexcept {
+	container::const_iterator end() const noexcept {
 		return _end ? _value.cbegin() + _end : _value.cend();
 	}
 
-	std::vector<digit>::reverse_iterator rbegin() noexcept {
-		return _end ? std::vector<digit>::reverse_iterator(_value.begin() + _end) : _value.rbegin();
+	container::reverse_iterator rbegin() noexcept {
+		return _end ? container::reverse_iterator(_value.begin() + _end) : _value.rbegin();
 	}
 
-	std::vector<digit>::const_reverse_iterator rbegin() const noexcept {
-		return _end ? std::vector<digit>::const_reverse_iterator(_value.cbegin() + _end) : _value.crbegin();
+	container::const_reverse_iterator rbegin() const noexcept {
+		return _end ? container::const_reverse_iterator(_value.cbegin() + _end) : _value.crbegin();
 	}
 
-	std::vector<digit>::reverse_iterator rend() noexcept {
-		return std::vector<digit>::reverse_iterator(_value.begin() + _begin);
+	container::reverse_iterator rend() noexcept {
+		return container::reverse_iterator(_value.begin() + _begin);
 	}
 
-	std::vector<digit>::const_reverse_iterator rend() const noexcept {
-		return std::vector<digit>::const_reverse_iterator(_value.cbegin() + _begin);
+	container::const_reverse_iterator rend() const noexcept {
+		return container::const_reverse_iterator(_value.cbegin() + _begin);
 	}
 
-	std::vector<digit>::reference front() {
+	container::reference front() {
 		return *begin();
 	}
 
-	std::vector<digit>::const_reference front() const {
+	container::const_reference front() const {
 		return *begin();
 	}
 
-	std::vector<digit>::reference back() {
+	container::reference back() {
 		return *rbegin();
 	}
 
-	std::vector<digit>::const_reference back() const {
+	container::const_reference back() const {
 		return *rbegin();
 	}
 
 private:
 	// Optimized primitives for operations
 
-	template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
-	void _uint_t(const T& value) {
-		append(static_cast<digit>(value));
-	}
-
-	template <typename T, typename... Args, typename = typename std::enable_if<std::is_integral<T>::value>::type>
-	void _uint_t(const T& value, Args... args) {
-		_uint_t(args...);
-		append(static_cast<digit>(value));
-	}
-
-	//
-
 	static digit _bits(digit x) {
 	#if defined HAVE____BUILTIN_CLZLL
 		if (digit_octets == sizeof(unsigned long long)) {
 			return x ? digit_bits - __builtin_clzll(x) : 1;
-		} else
+		}
 	#endif
 	#if defined HAVE____BUILTIN_CLZL
 		if (digit_octets == sizeof(unsigned long)) {
 			return x ? digit_bits - __builtin_clzl(x) : 1;
-		} else
+		}
 	#endif
 	#if defined HAVE____BUILTIN_CLZ
 		if (digit_octets == sizeof(unsigned)) {
 			return x ? digit_bits - __builtin_clz(x) : 1;
-		} else
+		}
 	#endif
 		{
 			digit c = x ? 0 : 1;
@@ -323,28 +346,28 @@ private:
 			digit h;
 			digit l = _umul128(x, y, &h);  // _umul128(x, y, *hi) -> lo
 			return h;
-		} else
+		}
 	#endif
 	#if defined HAVE___UMUL64
 		if (digit_bits == 32) {
 			digit h;
 			digit l = _umul64(x, y, &h);  // _umul64(x, y, *hi) -> lo
 			return h;
-		} else
+		}
 	#endif
 	#if defined HAVE___UMUL32
 		if (digit_bits == 16) {
 			digit h;
 			digit l = _umul32(x, y, &h);  // _umul32(x, y, *hi) -> lo
 			return h;
-		} else
+		}
 	#endif
 	#if defined HAVE____INT128_T
 		if (digit_bits == 64) {
 			auto r = static_cast<__uint128_t>(x) * static_cast<__uint128_t>(y);
 			*lo = r;
 			return r >> digit_bits;
-		} else
+		}
 	#endif
 		if (digit_bits == 64) {
 			digit x0 = x & 0xffffffffUL;
@@ -358,18 +381,18 @@ private:
 
 			*lo = (w << 32) + (u & 0xffffffffUL); // low
 			return (x1 * y1) + (v >> 32) + (w >> 32); // high
-		} else if (digit_bits == 32) {
+		} if (digit_bits == 32) {
 			auto r = static_cast<std::uint64_t>(x) * static_cast<std::uint64_t>(y);
 			*lo = r;
-			return r >> digit_bits;
-		} else if (digit_bits == 16) {
+			return r >> 32;
+		} if (digit_bits == 16) {
 			auto r = static_cast<std::uint32_t>(x) * static_cast<std::uint32_t>(y);
 			*lo = r;
-			return r >> digit_bits;
-		} else if (digit_bits == 8) {
+			return r >> 16;
+		} if (digit_bits == 8) {
 			auto r = static_cast<std::uint16_t>(x) * static_cast<std::uint16_t>(y);
 			*lo = r;
-			return r >> digit_bits;
+			return r >> 8;
 		}
 	}
 
@@ -379,28 +402,28 @@ private:
 			digit h;
 			digit l = _umul128(x, y, &h);  // _umul128(x, y, *hi) -> lo
 			return h + _addcarry_u64(c, l, a, lo);  // _addcarry_u64(carryin, x, y, *sum) -> carryout
-		} else
+		}
 	#endif
 	#if defined HAVE___UMUL64 && defined HAVE___ADDCARRY_U32
 		if (digit_bits == 32) {
 			digit h;
 			digit l = _umul64(x, y, &h);  // _umul64(x, y, *hi) -> lo
 			return h + _addcarry_u32(c, l, a, lo);  // _addcarry_u32(carryin, x, y, *sum) -> carryout
-		} else
+		}
 	#endif
 	#if defined HAVE___UMUL32 && defined HAVE___ADDCARRY_U16
 		if (digit_bits == 16) {
 			digit h;
 			digit l = _umul32(x, y, &h);  // _umul32(x, y, *hi) -> lo
 			return h + _addcarry_u16(c, l, a, lo);  // _addcarry_u16(carryin, x, y, *sum) -> carryout
-		} else
+		}
 	#endif
 	#if defined HAVE____INT128_T
 		if (digit_bits == 64) {
 			auto r = static_cast<__uint128_t>(x) * static_cast<__uint128_t>(y) + static_cast<__uint128_t>(a) + static_cast<__uint128_t>(c);
 			*lo = r;
 			return r >> digit_bits;
-		} else
+		}
 	#endif
 		if (digit_bits == 64) {
 			digit x0 = x & 0xffffffffUL;
@@ -414,18 +437,21 @@ private:
 
 			*lo = (w << 32) + (u & 0xffffffffUL); // low
 			return (x1 * y1) + (v >> 32) + (w >> 32); // high
-		} else if (digit_bits == 32) {
+		}
+		if (digit_bits == 32) {
 			auto r = static_cast<std::uint64_t>(x) * static_cast<std::uint64_t>(y) + static_cast<std::uint64_t>(a) + static_cast<std::uint64_t>(c);
 			*lo = r;
-			return r >> digit_bits;
-		} else if (digit_bits == 16) {
+			return r >> 32;
+		}
+		if (digit_bits == 16) {
 			auto r = static_cast<std::uint32_t>(x) * static_cast<std::uint32_t>(y) + static_cast<std::uint32_t>(a) + static_cast<std::uint32_t>(c);
 			*lo = r;
-			return r >> digit_bits;
-		} else if (digit_bits == 8) {
+			return r >> 16;
+		}
+		if (digit_bits == 8) {
 			auto r = static_cast<std::uint16_t>(x) * static_cast<std::uint16_t>(y) + static_cast<std::uint16_t>(a) + static_cast<std::uint16_t>(c);
 			*lo = r;
-			return r >> digit_bits;
+			return r >> 8;
 		}
 	}
 
@@ -438,7 +464,7 @@ private:
 
 			*result = q;
 			return r;
-		} else
+		}
 	#endif
 		if (digit_bits == 64) {
 			// quotient
@@ -479,22 +505,25 @@ private:
 
 			*result = q;
 			return r;
-		} else if (digit_bits == 32) {
-			auto x = static_cast<std::uint64_t>(x_hi) << digit_bits | static_cast<std::uint64_t>(x_lo);
+		}
+		if (digit_bits == 32) {
+			auto x = static_cast<std::uint64_t>(x_hi) << 32 | static_cast<std::uint64_t>(x_lo);
 			digit q = x / y;
 			digit r = x % y;
 
 			*result = q;
 			return r;
-		} else if (digit_bits == 16) {
-			auto x = static_cast<std::uint32_t>(x_hi) << digit_bits | static_cast<std::uint32_t>(x_lo);
+		}
+		if (digit_bits == 16) {
+			auto x = static_cast<std::uint32_t>(x_hi) << 16 | static_cast<std::uint32_t>(x_lo);
 			digit q = x / y;
 			digit r = x % y;
 
 			*result = q;
 			return r;
-		} else if (digit_bits == 8) {
-			auto x = static_cast<std::uint16_t>(x_hi) << digit_bits | static_cast<std::uint16_t>(x_lo);
+		}
+		if (digit_bits == 8) {
+			auto x = static_cast<std::uint16_t>(x_hi) << 8 | static_cast<std::uint16_t>(x_lo);
 			digit q = x / y;
 			digit r = x % y;
 
@@ -507,45 +536,45 @@ private:
 	#if defined HAVE___ADDCARRY_U64
 		if (digit_bits == 64) {
 			return _addcarry_u64(c, x, y, result);  // _addcarry_u64(carryin, x, y, *sum) -> carryout
-		} else
+		}
 	#endif
 	#if defined HAVE___ADDCARRY_U32
 		if (digit_bits == 32) {
 			return _addcarry_u32(c, x, y, result);  // _addcarry_u32(carryin, x, y, *sum) -> carryout
-		} else
+		}
 	#endif
 	#if defined HAVE___ADDCARRY_U16
 		if (digit_bits == 16) {
 			return _addcarry_u16(c, x, y, result);  // _addcarry_u16(carryin, x, y, *sum) -> carryout
-		} else
+		}
 	#endif
 	#if defined HAVE____BUILTIN_ADDCLL
 		if (digit_octets == sizeof(unsigned long long)) {
 			unsigned long long carryout;
 			*result = __builtin_addcll(x, y, c, &carryout);  // __builtin_addcll(x, y, carryin, *carryout) -> sum
 			return carryout;
-		} else
+		}
 	#endif
 	#if defined HAVE____BUILTIN_ADDCL
 		if (digit_octets == sizeof(unsigned long)) {
 			unsigned long carryout;
 			*result = __builtin_addcl(x, y, c, &carryout);  // __builtin_addcl(x, y, carryin, *carryout) -> sum
 			return carryout;
-		} else
+		}
 	#endif
 	#if defined HAVE____BUILTIN_ADDC
 		if (digit_octets == sizeof(unsigned)) {
 			unsigned carryout;
 			*result = __builtin_addc(x, y, c, &carryout);  // __builtin_addc(x, y, carryin, *carryout) -> sum
 			return carryout;
-		} else
+		}
 	#endif
 	#if defined HAVE____INT128_T
 		if (digit_bits == 64) {
 			auto r = static_cast<__uint128_t>(x) + static_cast<__uint128_t>(y) + static_cast<__uint128_t>(c);
 			*result = r;
 			return static_cast<bool>(r >> digit_bits);
-		} else
+		}
 	#endif
 		if (digit_bits == 64) {
 			digit x0 = x & 0xffffffffUL;
@@ -557,18 +586,21 @@ private:
 			auto v = x1 + y1 + static_cast<bool>(u >> 32);
 			*result = (v << 32) + (u & 0xffffffffUL);
 			return static_cast<bool>(v >> 32);
-		} else if (digit_bits == 32) {
+		}
+		if (digit_bits == 32) {
 			auto r = static_cast<std::uint64_t>(x) + static_cast<std::uint64_t>(y) + static_cast<std::uint64_t>(c);
 			*result = r;
-			return static_cast<bool>(r >> digit_bits);
-		} else if (digit_bits == 16) {
+			return static_cast<bool>(r >> 32);
+		}
+		if (digit_bits == 16) {
 			auto r = static_cast<std::uint32_t>(x) + static_cast<std::uint32_t>(y) + static_cast<std::uint32_t>(c);
 			*result = r;
-			return static_cast<bool>(r >> digit_bits);
-		} else if (digit_bits == 8) {
+			return static_cast<bool>(r >> 16);
+		}
+		if (digit_bits == 8) {
 			auto r = static_cast<std::uint16_t>(x) + static_cast<std::uint16_t>(y) + static_cast<std::uint16_t>(c);
 			*result = r;
-			return static_cast<bool>(r >> digit_bits);
+			return static_cast<bool>(r >> 8);
 		}
 	}
 
@@ -576,45 +608,45 @@ private:
 	#if defined HAVE___SUBBORROW_U64
 		if (digit_bits == 64) {
 			return _subborrow_u64(c, x, y, result);  // _subborrow_u64(carryin, x, y, *sum) -> carryout
-		} else
+		}
 	#endif
 	#if defined HAVE___SUBBORROW_U32
 		if (digit_bits == 64) {
 			return _subborrow_u32(c, x, y, result);  // _subborrow_u32(carryin, x, y, *sum) -> carryout
-		} else
+		}
 	#endif
 	#if defined HAVE___SUBBORROW_U16
 		if (digit_bits == 64) {
 			return _subborrow_u16(c, x, y, result);  // _subborrow_u16(carryin, x, y, *sum) -> carryout
-		} else
+		}
 	#endif
 	#if defined HAVE____BUILTIN_SUBCLL
 		if (digit_octets == sizeof(unsigned long long)) {
 			unsigned long long carryout;
 			*result = __builtin_subcll(x, y, c, &carryout);  // __builtin_subcll(x, y, carryin, *carryout) -> sum
 			return carryout;
-		} else
+		}
 	#endif
 	#if defined HAVE____BUILTIN_SUBCL
 		if (digit_octets == sizeof(unsigned long)) {
 			unsigned long carryout;
 			*result = __builtin_subcl(x, y, c, &carryout);  // __builtin_subcl(x, y, carryin, *carryout) -> sum
 			return carryout;
-		} else
+		}
 	#endif
 	#if defined HAVE____BUILTIN_SUBC
 		if (digit_octets == sizeof(unsigned)) {
 			unsigned carryout;
 			*result = __builtin_subc(x, y, c, &carryout);  // __builtin_subc(x, y, carryin, *carryout) -> sum
 			return carryout;
-		} else
+		}
 	#endif
 	#if defined HAVE____INT128_T
 		if (digit_bits == 64) {
 			auto r = static_cast<__uint128_t>(x) - static_cast<__uint128_t>(y) - static_cast<__uint128_t>(c);
 			*result = r;
-			return static_cast<bool>(r >> digit_bits);
-		} else
+			return static_cast<bool>(r >> 64);
+		}
 	#endif
 		if (digit_bits == 64) {
 			digit x0 = x & 0xffffffffUL;
@@ -626,18 +658,21 @@ private:
 			auto v = x1 - y1 - static_cast<bool>(u >> 32);
 			*result = (v << 32) + (u & 0xffffffffUL);
 			return static_cast<bool>(v >> 32);
-		} else if (digit_bits == 32) {
+		}
+		if (digit_bits == 32) {
 			auto r = static_cast<std::uint64_t>(x) - static_cast<std::uint64_t>(y) - static_cast<std::uint64_t>(c);
 			*result = r;
-			return static_cast<bool>(r >> digit_bits);
-		} else if (digit_bits == 16) {
+			return static_cast<bool>(r >> 32);
+		}
+		if (digit_bits == 16) {
 			auto r = static_cast<std::uint32_t>(x) - static_cast<std::uint32_t>(y) - static_cast<std::uint32_t>(c);
 			*result = r;
-			return static_cast<bool>(r >> digit_bits);
-		} else if (digit_bits == 8) {
+			return static_cast<bool>(r >> 16);
+		}
+		if (digit_bits == 8) {
 			auto r = static_cast<std::uint16_t>(x) - static_cast<std::uint16_t>(y) - static_cast<std::uint16_t>(c);
 			*result = r;
-			return static_cast<bool>(r >> digit_bits);
+			return static_cast<bool>(r >> 8);
 		}
 	}
 
@@ -772,8 +807,25 @@ private:
 public:
 #endif
 	static uint_t& bitwise_and(uint_t& lhs, const uint_t& rhs) {
-		// Needs optimized implementation.
-		return bitwise_and(lhs, lhs, rhs);
+		auto lhs_sz = lhs.size();
+		auto rhs_sz = rhs.size();
+
+		if (lhs_sz > rhs_sz) {
+			lhs.resize(rhs_sz); // shrink
+		}
+
+		auto lhs_it = lhs.begin();
+		auto lhs_it_e = lhs.end();
+
+		auto rhs_it = rhs.begin();
+
+		for (; lhs_it != lhs_it_e; ++lhs_it, ++rhs_it) {
+			*lhs_it &= *rhs_it;
+		}
+
+		// Finish up
+		lhs.trim();
+		return lhs;
 	}
 
 	static uint_t& bitwise_and(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
@@ -786,31 +838,25 @@ public:
 		// not using `end()` because resize of `result.resize()` could have
 		// resized `lhs` or `rhs` if `result` is also either `rhs` or `lhs`.
 		auto lhs_it = lhs.begin();
-		auto lhs_it_e = lhs.begin() + lhs_sz;
+		auto lhs_it_e = lhs_it + lhs_sz;
+
 		auto rhs_it = rhs.begin();
-		auto rhs_it_e = rhs.begin() + rhs_sz;
+		auto rhs_it_e = rhs_it + rhs_sz;
 
 		auto it = result.begin();
-		auto it_e = result.begin() + result_sz;
 
-		if (lhs_sz > rhs_sz) {
-			for (; rhs_it != rhs_it_e; ++lhs_it, ++rhs_it, ++it) {
-				assert(it != it_e);
-				assert(lhs_it != lhs_it_e);
-				*it = *lhs_it & *rhs_it;
-			}
-			for (; lhs_it != lhs_it_e; ++lhs_it, ++it) {
-				assert(it != it_e);
-				*it = 0;
-			}
-		} else {
+		if (lhs_sz < rhs_sz) {
 			for (; lhs_it != lhs_it_e; ++lhs_it, ++rhs_it, ++it) {
-				assert(it != it_e);
-				assert(rhs_it != rhs_it_e);
 				*it = *lhs_it & *rhs_it;
 			}
 			for (; rhs_it != rhs_it_e; ++rhs_it, ++it) {
-				assert(it != it_e);
+				*it = 0;
+			}
+		} else {
+			for (; rhs_it != rhs_it_e; ++lhs_it, ++rhs_it, ++it) {
+				*it = *lhs_it & *rhs_it;
+			}
+			for (; lhs_it != lhs_it_e; ++lhs_it, ++it) {
 				*it = 0;
 			}
 		}
@@ -827,8 +873,25 @@ public:
 	}
 
 	static uint_t& bitwise_or(uint_t& lhs, const uint_t& rhs) {
-		// Needs optimized implementation.
-		return bitwise_or(lhs, lhs, rhs);
+		auto lhs_sz = lhs.size();
+		auto rhs_sz = rhs.size();
+
+		if (lhs_sz < rhs_sz) {
+			lhs.resize(rhs_sz, 0); // grow
+		}
+
+		auto lhs_it = lhs.begin();
+
+		auto rhs_it = rhs.begin();
+		auto rhs_it_e = rhs.end();
+
+		for (; rhs_it != rhs_it_e; ++lhs_it, ++rhs_it) {
+			*lhs_it |= *rhs_it;
+		}
+
+		// Finish up
+		lhs.trim();
+		return lhs;
 	}
 
 	static uint_t& bitwise_or(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
@@ -841,32 +904,26 @@ public:
 		// not using `end()` because resize of `result.resize()` could have
 		// resized `lhs` or `rhs` if `result` is also either `rhs` or `lhs`.
 		auto lhs_it = lhs.begin();
-		auto lhs_it_e = lhs.begin() + lhs_sz;
+		auto lhs_it_e = lhs_it + lhs_sz;
+
 		auto rhs_it = rhs.begin();
-		auto rhs_it_e = rhs.begin() + rhs_sz;
+		auto rhs_it_e = rhs_it + rhs_sz;
 
 		auto it = result.begin();
-		auto it_e = result.begin() + result_sz;
 
-		if (lhs_sz > rhs_sz) {
-			for (; rhs_it != rhs_it_e; ++lhs_it, ++rhs_it, ++it) {
-				assert(it != it_e);
-				assert(lhs_it != lhs_it_e);
-				*it = *lhs_it | *rhs_it;
-			}
-			for (; lhs_it != lhs_it_e; ++lhs_it, ++it) {
-				assert(it != it_e);
-				*it = *lhs_it;
-			}
-		} else {
+		if (lhs_sz < rhs_sz) {
 			for (; lhs_it != lhs_it_e; ++lhs_it, ++rhs_it, ++it) {
-				assert(it != it_e);
-				assert(rhs_it != rhs_it_e);
 				*it = *lhs_it | *rhs_it;
 			}
 			for (; rhs_it != rhs_it_e; ++rhs_it, ++it) {
-				assert(it != it_e);
 				*it = *rhs_it;
+			}
+		} else {
+			for (; rhs_it != rhs_it_e; ++lhs_it, ++rhs_it, ++it) {
+				*it = *lhs_it | *rhs_it;
+			}
+			for (; lhs_it != lhs_it_e; ++lhs_it, ++it) {
+				*it = *lhs_it;
 			}
 		}
 
@@ -881,8 +938,25 @@ public:
 	}
 
 	static uint_t& bitwise_xor(uint_t& lhs, const uint_t& rhs) {
-		// Needs optimized implementation.
-		return bitwise_xor(lhs, lhs, rhs);
+		auto lhs_sz = lhs.size();
+		auto rhs_sz = rhs.size();
+
+		if (lhs_sz < rhs_sz) {
+			lhs.resize(rhs_sz, 0); // grow
+		}
+
+		auto lhs_it = lhs.begin();
+
+		auto rhs_it = rhs.begin();
+		auto rhs_it_e = rhs.end();
+
+		for (; rhs_it != rhs_it_e; ++lhs_it, ++rhs_it) {
+			*lhs_it ^= *rhs_it;
+		}
+
+		// Finish up
+		lhs.trim();
+		return lhs;
 	}
 
 	static uint_t& bitwise_xor(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
@@ -895,32 +969,26 @@ public:
 		// not using `end()` because resize of `result.resize()` could have
 		// resized `lhs` or `rhs` if `result` is also either `rhs` or `lhs`.
 		auto lhs_it = lhs.begin();
-		auto lhs_it_e = lhs.begin() + lhs_sz;
+		auto lhs_it_e = lhs_it + lhs_sz;
+
 		auto rhs_it = rhs.begin();
-		auto rhs_it_e = rhs.begin() + rhs_sz;
+		auto rhs_it_e = rhs_it + rhs_sz;
 
 		auto it = result.begin();
-		auto it_e = result.begin() + result_sz;
 
-		if (lhs_sz > rhs_sz) {
-			for (; rhs_it != rhs_it_e; ++lhs_it, ++rhs_it, ++it) {
-				assert(it != it_e);
-				assert(lhs_it != lhs_it_e);
-				*it = *lhs_it ^ *rhs_it;
-			}
-			for (; lhs_it != lhs_it_e; ++lhs_it, ++it) {
-				assert(it != it_e);
-				*it = *lhs_it;
-			}
-		} else {
+		if (lhs_sz < rhs_sz) {
 			for (; lhs_it != lhs_it_e; ++lhs_it, ++rhs_it, ++it) {
-				assert(it != it_e);
-				assert(rhs_it != rhs_it_e);
 				*it = *lhs_it ^ *rhs_it;
 			}
 			for (; rhs_it != rhs_it_e; ++rhs_it, ++it) {
-				assert(it != it_e);
 				*it = *rhs_it;
+			}
+		} else {
+			for (; rhs_it != rhs_it_e; ++lhs_it, ++rhs_it, ++it) {
+				*it = *lhs_it ^ *rhs_it;
+			}
+			for (; lhs_it != lhs_it_e; ++lhs_it, ++it) {
+				*it = *lhs_it;
 			}
 		}
 
@@ -947,7 +1015,7 @@ public:
 		// not using `end()` because resize of `result.resize()` could have
 		// resized `lhs` if `result` is also `lhs`.
 		auto lhs_it = lhs.begin();
-		auto lhs_it_e = lhs.begin() + lhs_sz;
+		auto lhs_it_e = lhs_it + lhs_sz;
 
 		for (; lhs_it != lhs_it_e; ++lhs_it) {
 			*lhs_it = ~*lhs_it;
@@ -969,13 +1037,12 @@ public:
 		// not using `end()` because resize of `result.resize()` could have
 		// resized `lhs` if `result` is also `lhs`.
 		auto lhs_it = lhs.begin();
-		auto lhs_it_e = lhs.begin() + lhs_sz;
+		auto lhs_it_e = lhs_it + lhs_sz;
 
 		auto it = result.begin();
-		auto it_e = result.begin() + result_sz;
+		auto it_e = it + result_sz;
 
 		for (; lhs_it != lhs_it_e; ++lhs_it, ++it) {
-			assert(it != it_e);
 			*it = ~*lhs_it;
 		}
 		for (; it != it_e; ++it) {
@@ -1056,14 +1123,13 @@ public:
 		// not using `end()` because resize of `result.resize()` could have
 		// resized `lhs` if `result` is also `lhs`.
 		auto lhs_it = lhs.begin();
-		auto lhs_it_e = lhs.begin() + lhs_sz;
+		auto lhs_it_e = lhs_it + lhs_sz;
+
 		auto it = result.begin() + shifts;
-		auto it_e = result.begin() + result_sz;
 
 		if (shift) {
 			digit shifted = 0;
 			for (; lhs_it != lhs_it_e; ++lhs_it, ++it) {
-				assert(it != it_e);
 				auto v = (*lhs_it << shift) | shifted;
 				shifted = *lhs_it >> (_digit_bits - shift);
 				*it = v;
@@ -1073,7 +1139,6 @@ public:
 			}
 		} else {
 			for (; lhs_it != lhs_it_e; ++lhs_it, ++it) {
-				assert(it != it_e);
 				*it = *lhs_it;
 			}
 		}
@@ -1158,9 +1223,10 @@ public:
 		// not using `end()` because resize of `result.resize()` could have
 		// resized `lhs` if `result` is also `lhs`.
 		auto lhs_rit = lhs.rbegin();
-		auto lhs_rit_e = lhs.rbegin() + lhs_sz - shifts;
+		auto lhs_rit_e = lhs_rit + lhs_sz - shifts;
+
 		auto rit = result.rbegin();
-		auto rit_e = result.rbegin() + result_sz;
+		auto rit_e = rit + result_sz;
 
 		if (shift) {
 			digit shifted = 0;
@@ -1191,67 +1257,111 @@ public:
 	static int compare(const uint_t& lhs, const uint_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
+
 		if (lhs_sz > rhs_sz) return 1;
 		if (lhs_sz < rhs_sz) return -1;
+
 		auto lhs_rit = lhs.rbegin();
 		auto lhs_rit_e = lhs.rend();
+
 		auto rhs_rit = rhs.rbegin();
+
 		for (; lhs_rit != lhs_rit_e && *lhs_rit == *rhs_rit; ++lhs_rit, ++rhs_rit);
+
 		if (lhs_rit != lhs_rit_e) {
 			if (*lhs_rit > *rhs_rit) return 1;
 			if (*lhs_rit < *rhs_rit) return -1;
 		}
+
 		return 0;
 	}
 
-	static uint_t& long_add(uint_t& lhs, const uint_t& rhs, std::size_t result_start=0, std::size_t lhs_start=0, std::size_t rhs_start=0) {
-		// Needs optimized implementation.
-		return long_add(lhs, lhs, rhs, result_start, lhs_start, rhs_start);
-	}
-
-	static uint_t& long_add(uint_t& result, const uint_t& lhs, const uint_t& rhs, std::size_t result_start=0, std::size_t lhs_start=0, std::size_t rhs_start=0) {
+	static uint_t& long_add(uint_t& lhs, const uint_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
-		if (lhs_start > lhs_sz) lhs_start = lhs_sz;
-		if (rhs_start > rhs_sz) rhs_start = rhs_sz;
+		if (lhs_sz < rhs_sz) {
+			lhs.reserve(rhs_sz + 1);
+			lhs.resize(rhs_sz, 0); // grow
+		}
 
-		auto lhs_rsz = lhs_sz - lhs_start;
-		auto rhs_rsz = rhs_sz - rhs_start;
-		auto result_sz = std::max(lhs_rsz, rhs_rsz) + result_start;
+		// not using `end()` because resize of `lhs.resize()` could have
+		// resized `lhs`.
+		auto lhs_it = lhs.begin();
+		auto lhs_it_e = lhs_it + lhs_sz;
+
+		auto rhs_it = rhs.begin();
+		auto rhs_it_e = rhs_it + rhs_sz;
+
+		digit carry = 0;
+		if (lhs_sz < rhs_sz) {
+			for (; lhs_it != lhs_it_e; ++rhs_it, ++lhs_it) {
+				carry = _addcarry(*lhs_it, *rhs_it, carry, &*lhs_it);
+			}
+			for (; carry && rhs_it != rhs_it_e; ++rhs_it, ++lhs_it) {
+				carry = _addcarry(0, *rhs_it, carry, &*lhs_it);
+			}
+			for (; rhs_it != rhs_it_e; ++rhs_it, ++lhs_it) {
+				*lhs_it = *rhs_it;
+			}
+		} else {
+			for (; rhs_it != rhs_it_e; ++rhs_it, ++lhs_it) {
+				carry = _addcarry(*lhs_it, *rhs_it, carry, &*lhs_it);
+			}
+			for (; carry && lhs_it != lhs_it_e; ++lhs_it) {
+				carry = _addcarry(*lhs_it, 0, carry, &*lhs_it);
+			}
+		}
+
+		if (carry) {
+			lhs.append(1);
+		}
+
+		lhs._carry = false;
+
+		// Finish up
+		lhs.trim();
+		return lhs;
+	}
+
+	static uint_t& long_add(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
+		auto lhs_sz = lhs.size();
+		auto rhs_sz = rhs.size();
+
+		auto result_sz = std::max(lhs_sz, rhs_sz);
 		result.reserve(result_sz + 1);
 		result.resize(result_sz, 0);
 
 		// not using `end()` because resize of `result.resize()` could have
 		// resized `lhs` or `rhs` if `result` is also either `rhs` or `lhs`.
-		auto lhs_it = lhs.begin() + lhs_start;
-		auto lhs_it_e = lhs.begin() + lhs_sz;
-		auto rhs_it = rhs.begin() + rhs_start;
-		auto rhs_it_e = rhs.begin() + rhs_sz;
+		auto lhs_it = lhs.begin();
+		auto lhs_it_e = lhs_it + lhs_sz;
 
-		auto it = result.begin() + result_start;
-		auto it_e = result.begin() + result_sz;
+		auto rhs_it = rhs.begin();
+		auto rhs_it_e = rhs_it + rhs_sz;
+
+		auto it = result.begin();
 
 		digit carry = 0;
-		if (lhs_rsz > rhs_rsz) {
-			for (; rhs_it != rhs_it_e; ++lhs_it, ++rhs_it, ++it) {
-				assert(it != it_e);
-				assert(lhs_it != lhs_it_e);
-				carry = _addcarry(*lhs_it, *rhs_it, carry, &*it);
-			}
-			for (; lhs_it != lhs_it_e; ++lhs_it, ++it) {
-				assert(it != it_e);
-				carry = _addcarry(*lhs_it, 0, carry, &*it);
-			}
-		} else {
+		if (lhs_sz < rhs_sz) {
 			for (; lhs_it != lhs_it_e; ++lhs_it, ++rhs_it, ++it) {
-				assert(it != it_e);
-				assert(rhs_it != rhs_it_e);
 				carry = _addcarry(*lhs_it, *rhs_it, carry, &*it);
+			}
+			for (; carry && rhs_it != rhs_it_e; ++rhs_it, ++it) {
+				carry = _addcarry(0, *rhs_it, carry, &*it);
 			}
 			for (; rhs_it != rhs_it_e; ++rhs_it, ++it) {
-				assert(it != it_e);
-				carry = _addcarry(0, *rhs_it, carry, &*it);
+				*it = *rhs_it;
+			}
+		} else {
+			for (; rhs_it != rhs_it_e; ++lhs_it, ++rhs_it, ++it) {
+				carry = _addcarry(*lhs_it, *rhs_it, carry, &*it);
+			}
+			for (; carry && lhs_it != lhs_it_e; ++lhs_it, ++it) {
+				carry = _addcarry(*lhs_it, 0, carry, &*it);
+			}
+			for (; lhs_it != lhs_it_e; ++lhs_it, ++it) {
+				*it = *lhs_it;
 			}
 		}
 
@@ -1265,7 +1375,7 @@ public:
 		return result;
 	}
 
-	static uint_t& add(uint_t& lhs, const uint_t& rhs, std::size_t result_start=0, std::size_t lhs_start=0, std::size_t rhs_start=0) {
+	static uint_t& add(uint_t& lhs, const uint_t& rhs) {
 		// First try saving some calculations:
 		if (!rhs) {
 			return lhs;
@@ -1275,10 +1385,10 @@ public:
 			return lhs;
 		}
 
-		return long_add(lhs, rhs, result_start, lhs_start, rhs_start);
+		return long_add(lhs, rhs);
 	}
 
-	static uint_t& add(uint_t& result, const uint_t& lhs, const uint_t& rhs, std::size_t result_start=0, std::size_t lhs_start=0, std::size_t rhs_start=0) {
+	static uint_t& add(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
 		// First try saving some calculations:
 		if (!rhs) {
 			result = lhs;
@@ -1289,63 +1399,89 @@ public:
 			return result;
 		}
 
-		return long_add(result, lhs, rhs, result_start, lhs_start, rhs_start);
+		return long_add(result, lhs, rhs);
 	}
 
-	static uint_t add(const uint_t& lhs, const uint_t& rhs, std::size_t result_start=0, std::size_t lhs_start=0, std::size_t rhs_start=0) {
+	static uint_t add(const uint_t& lhs, const uint_t& rhs) {
 		uint_t result;
-		add(result, lhs, rhs, result_start, lhs_start, rhs_start);
+		add(result, lhs, rhs);
 		return result;
 	}
 
-	static uint_t& long_sub(uint_t& lhs, const uint_t& rhs, std::size_t result_start=0, std::size_t lhs_start=0, std::size_t rhs_start=0) {
-		// Needs optimized implementation.
-		return long_sub(lhs, lhs, rhs, result_start, lhs_start, rhs_start);
-	}
-
-	static uint_t& long_sub(uint_t& result, const uint_t& lhs, const uint_t& rhs, std::size_t result_start=0, std::size_t lhs_start=0, std::size_t rhs_start=0) {
+	static uint_t& long_sub(uint_t& lhs, const uint_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
-		if (rhs_start > rhs_sz) rhs_start = rhs_sz;
-		if (lhs_start > lhs_sz) lhs_start = lhs_sz;
+		if (lhs_sz < rhs_sz) {
+			lhs.resize(rhs_sz, 0); // grow
+		}
 
-		auto lhs_rsz = lhs_sz - lhs_start;
-		auto rhs_rsz = rhs_sz - rhs_start;
-		auto result_sz = std::max(lhs_rsz, rhs_rsz) + result_start;
-		result.reserve(result_sz + 1);
+		// not using `end()` because resize of `lhs.resize()` could have
+		// resized `lhs`.
+		auto lhs_it = lhs.begin();
+		auto lhs_it_e = lhs_it + lhs_sz;
+
+		auto rhs_it = rhs.begin();
+		auto rhs_it_e = rhs_it + rhs_sz;
+
+		digit borrow = 0;
+		if (lhs_sz < rhs_sz) {
+			for (; lhs_it != lhs_it_e; ++lhs_it, ++rhs_it) {
+				borrow = _subborrow(*lhs_it, *rhs_it, borrow, &*lhs_it);
+			}
+			for (; rhs_it != rhs_it_e; ++lhs_it, ++rhs_it) {
+				borrow = _subborrow(0, *rhs_it, borrow, &*lhs_it);
+			}
+		} else {
+			for (; rhs_it != rhs_it_e; ++lhs_it, ++rhs_it) {
+				borrow = _subborrow(*lhs_it, *rhs_it, borrow, &*lhs_it);
+			}
+			for (; borrow && lhs_it != lhs_it_e; ++lhs_it) {
+				borrow = _subborrow(*lhs_it, 0, borrow, &*lhs_it);
+			}
+		}
+
+		lhs._carry = borrow;
+
+		// Finish up
+		lhs.trim();
+		return lhs;
+	}
+
+	static uint_t& long_sub(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
+		auto lhs_sz = lhs.size();
+		auto rhs_sz = rhs.size();
+
+		auto result_sz = std::max(lhs_sz, rhs_sz);
 		result.resize(result_sz, 0);
 
 		// not using `end()` because resize of `result.resize()` could have
 		// resized `lhs` or `rhs` if `result` is also either `rhs` or `lhs`.
-		auto lhs_it = lhs.begin() + lhs_start;
-		auto lhs_it_e = lhs.begin() + lhs_sz;
-		auto rhs_it = rhs.begin() + rhs_start;
-		auto rhs_it_e = rhs.begin() + rhs_sz;
+		auto lhs_it = lhs.begin();
+		auto lhs_it_e = lhs_it + lhs_sz;
 
-		auto it = result.begin() + result_start;
-		auto it_e = result.begin() + result_sz;
+		auto rhs_it = rhs.begin();
+		auto rhs_it_e = rhs_it + rhs_sz;
+
+		auto it = result.begin();
 
 		digit borrow = 0;
-		if (lhs_rsz > rhs_rsz) {
-			for (; rhs_it != rhs_it_e; ++lhs_it, ++rhs_it, ++it) {
-				assert(it != it_e);
-				assert(lhs_it != lhs_it_e);
-				borrow = _subborrow(*lhs_it, *rhs_it, borrow, &*it);
-			}
-			for (; lhs_it != lhs_it_e; ++lhs_it, ++it) {
-				assert(it != it_e);
-				borrow = _subborrow(*lhs_it, 0, borrow, &*it);
-			}
-		} else {
+		if (lhs_sz < rhs_sz) {
 			for (; lhs_it != lhs_it_e; ++lhs_it, ++rhs_it, ++it) {
-				assert(it != it_e);
-				assert(rhs_it != rhs_it_e);
 				borrow = _subborrow(*lhs_it, *rhs_it, borrow, &*it);
 			}
 			for (; rhs_it != rhs_it_e; ++rhs_it, ++it) {
-				assert(it != it_e);
 				borrow = _subborrow(0, *rhs_it, borrow, &*it);
+			}
+		} else {
+			for (; rhs_it != rhs_it_e; ++lhs_it, ++rhs_it, ++it) {
+				borrow = _subborrow(*lhs_it, *rhs_it, borrow, &*it);
+			}
+			for (; borrow && lhs_it != lhs_it_e; ++lhs_it, ++it) {
+				borrow = _subborrow(*lhs_it, 0, borrow, &*it);
+			}
+			for (; lhs_it != lhs_it_e; ++lhs_it, ++it) {
+				*it = *lhs_it;
 			}
 		}
 
@@ -1356,28 +1492,28 @@ public:
 		return result;
 	}
 
-	static uint_t& sub(uint_t& lhs, const uint_t& rhs, std::size_t result_start=0, std::size_t lhs_start=0, std::size_t rhs_start=0) {
+	static uint_t& sub(uint_t& lhs, const uint_t& rhs) {
 		// First try saving some calculations:
 		if (!rhs) {
 			return lhs;
 		}
 
-		return long_sub(lhs, rhs, result_start, lhs_start, rhs_start);
+		return long_sub(lhs, rhs);
 	}
 
-	static uint_t& sub(uint_t& result, const uint_t& lhs, const uint_t& rhs, std::size_t result_start=0, std::size_t lhs_start=0, std::size_t rhs_start=0) {
+	static uint_t& sub(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
 		// First try saving some calculations:
 		if (!rhs) {
 			result = lhs;
 			return result;
 		}
 
-		return long_sub(result, lhs, rhs, result_start, lhs_start, rhs_start);
+		return long_sub(result, lhs, rhs);
 	}
 
-	static uint_t sub(const uint_t& lhs, const uint_t& rhs, std::size_t result_start=0, std::size_t lhs_start=0, std::size_t rhs_start=0) {
+	static uint_t sub(const uint_t& lhs, const uint_t& rhs) {
 		uint_t result;
-		sub(result, lhs, rhs, result_start, lhs_start, rhs_start);
+		sub(result, lhs, rhs);
 		return result;
 	}
 
@@ -1493,7 +1629,8 @@ public:
 			const uint_t rhs_slice(rhs, rhs_begin, rhs_begin + slice_size);
 			uint_t p;
 			karatsuba_mult(p, lhs, rhs_slice, cutoff);
-			add(r, r, p, shift, shift);
+			uint_t rs(r, shift, 0);
+			add(rs, rs, p);
 			shift += slice_size;
 			rhs_sz -= slice_size;
 			rhs_begin += slice_size;
@@ -1567,7 +1704,8 @@ public:
 		BD.append(AC);
 
 		// And add AD_BC to the middle: (AC           BD) + (    AD + BC    ):
-		add(BD, BD, AD_BC, shift, shift);
+		uint_t BDs(BD, shift, 0);
+		add(BDs, BDs, AD_BC);
 
 		result = std::move(BD);
 
@@ -1777,6 +1915,17 @@ public:
 private:
 	// Constructors
 
+	template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
+	void _uint_t(const T& value) {
+		append(static_cast<digit>(value));
+	}
+
+	template <typename T, typename... Args, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
+	void _uint_t(const T& value, Args... args) {
+		_uint_t(args...);
+		append(static_cast<digit>(value));
+	}
+
 	// This constructor creates a window view of the _value
 	uint_t(const uint_t& o, std::size_t begin, std::size_t end) :
 		_begin(begin),
@@ -1805,7 +1954,7 @@ public:
 		_value(_value_instance),
 		_carry(std::move(o._carry)) { }
 
-	template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+	template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 	uint_t(const T& value) :
 		_begin(0),
 		_end(0),
@@ -1816,7 +1965,7 @@ public:
 		}
 	}
 
-	template <typename T, typename... Args, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+	template <typename T, typename... Args, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 	uint_t(const T& value, Args... args) :
 		_begin(0),
 		_end(0),
@@ -1824,6 +1973,19 @@ public:
 		_carry(false) {
 		_uint_t(args...);
 		append(static_cast<digit>(value));
+		trim();
+	}
+
+	template <typename T, typename... Args, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
+	uint_t(std::initializer_list<T> list) :
+		_begin(0),
+		_end(0),
+		_value(_value_instance),
+		_carry(false) {
+		reserve(list.size());
+		for (const auto& value : list) {
+			append(static_cast<digit>(value));
+		}
 		trim();
 	}
 
@@ -1845,7 +2007,7 @@ public:
 	uint_t& operator=(const uint_t& o) {
 		_begin = 0;
 		_end = 0;
-		_value = std::vector<digit>(o.begin(), o.end());
+		_value = container(o.begin(), o.end());
 		_carry = o._carry;
 		return *this;
 	}
@@ -2225,135 +2387,135 @@ namespace std {  // This is probably not a good idea
 // If the output is not a bool, casts to type T
 
 // Bitwise Operators
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 uint_t operator&(const T& lhs, const uint_t& rhs) {
 	return uint_t(lhs) & rhs;
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 T& operator&=(T& lhs, const uint_t& rhs) {
 	return lhs = static_cast<T>(rhs & lhs);
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 uint_t operator|(const T& lhs, const uint_t& rhs) {
 	return uint_t(lhs) | rhs;
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 T& operator|=(T& lhs, const uint_t& rhs) {
 	return lhs = static_cast<T>(rhs | lhs);
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 uint_t operator^(const T& lhs, const uint_t& rhs) {
 	return uint_t(lhs) ^ rhs;
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 T& operator^=(T& lhs, const uint_t& rhs) {
 	return lhs = static_cast<T>(rhs ^ lhs);
 }
 
 // Bitshift operators
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 inline uint_t operator<<(T& lhs, const uint_t& rhs) {
 	return uint_t(lhs) << rhs;
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 T& operator<<=(T& lhs, const uint_t& rhs) {
 	return lhs = static_cast<T>(lhs << rhs);
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 inline uint_t operator>>(T& lhs, const uint_t& rhs) {
 	return uint_t(lhs) >> rhs;
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 T& operator>>=(T& lhs, const uint_t& rhs) {
 	return lhs = static_cast<T>(lhs >> rhs);
 }
 
 // Comparison Operators
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 bool operator==(const T& lhs, const uint_t& rhs) {
 	return uint_t(lhs) == rhs;
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 bool operator!=(const T& lhs, const uint_t& rhs) {
 	return uint_t(lhs) != rhs;
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 bool operator>(const T& lhs, const uint_t& rhs) {
 	return uint_t(lhs) > rhs;
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 bool operator<(const T& lhs, const uint_t& rhs) {
 	return uint_t(lhs) < rhs;
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 bool operator>=(const T& lhs, const uint_t& rhs) {
 	return uint_t(lhs) >= rhs;
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 bool operator<=(const T& lhs, const uint_t& rhs) {
 	return uint_t(lhs) <= rhs;
 }
 
 // Arithmetic Operators
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 uint_t operator+(const T& lhs, const uint_t& rhs) {
 	return uint_t(lhs) + rhs;
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 T& operator+=(T& lhs, const uint_t& rhs) {
 	return lhs = static_cast<T>(rhs + lhs);
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 uint_t operator-(const T& lhs, const uint_t& rhs) {
 	return uint_t(lhs) - rhs;
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 T& operator-=(T& lhs, const uint_t& rhs) {
 	return lhs = static_cast<T>(lhs - rhs);
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 uint_t operator*(const T& lhs, const uint_t& rhs) {
 	return uint_t(lhs) * rhs;
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 T& operator*=(T& lhs, const uint_t& rhs) {
 	return lhs = static_cast<T>(rhs * lhs);
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 uint_t operator/(const T& lhs, const uint_t& rhs) {
 	return uint_t(lhs) / rhs;
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 T& operator/=(T& lhs, const uint_t& rhs) {
 	return lhs = static_cast<T>(lhs / rhs);
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 uint_t operator%(const T& lhs, const uint_t& rhs) {
 	return uint_t(lhs) % rhs;
 }
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_integral<T>::value and not std::is_same<T, std::decay_t<uint_t>>::value>>
 T& operator%=(T& lhs, const uint_t& rhs) {
 	return lhs = static_cast<T>(lhs % rhs);
 }
