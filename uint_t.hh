@@ -1,6 +1,6 @@
 /*
 uint_t.hh
-An unsigned integer type for C++
+An arbitrary precision unsigned integer type for C++
 
 Copyright (c) 2017 German Mendez Bravo (Kronuz) @ german dot mb at gmail.com
 Copyright (c) 2013 - 2017 Jason Lee @ calccrypto at gmail.com

@@ -2,7 +2,9 @@
 
 [![Build Status](https://travis-ci.org/Kronuz/base-x.svg?branch=master)](https://travis-ci.org/Kronuz/base-x)
 
-Fast base encoding / decoding of any given alphabet.
+### BaseX encoder / decoder for C++
+
+This is a fast base encoder / decoder of any given alphabet.
 
 
 ## Example
