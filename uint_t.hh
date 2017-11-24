@@ -1381,7 +1381,38 @@ public:
 		return result;
 	}
 
-	// Long multiplication
+	// Single word long multiplication
+	// Fastests, but ONLY for single sized rhs
+	static uint_t& single_mult(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
+		auto lhs_sz = lhs.size();
+		auto rhs_sz = rhs.size();
+
+		assert(rhs_sz == 1);
+		auto n = rhs.front();
+
+		uint_t tmp;
+		tmp.resize(lhs_sz + 1, 0);
+
+		auto it_lhs = lhs.begin();
+		auto it_lhs_e = lhs.end();
+
+		auto it_result = tmp.begin();
+
+		digit carry = 0;
+		for (; it_lhs != it_lhs_e; ++it_lhs, ++it_result) {
+			carry = _multadd(*it_lhs, n, 0, carry, &*it_result);
+		}
+		if (carry) {
+			*it_result = carry;
+		}
+
+		result = std::move(tmp);
+
+		// Finish up
+		result.trim();
+		return result;
+	}
+
 	static uint_t& long_mult(uint_t& result, const uint_t& lhs, const uint_t& rhs) {
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
@@ -1391,8 +1422,12 @@ public:
 			return long_mult(result, rhs, lhs);
 		}
 
+		if (lhs_sz == 1) {
+			return single_mult(result, rhs, lhs);
+		}
+
 		uint_t tmp;
-		tmp.resize(rhs.size() + lhs.size(), 0);
+		tmp.resize(lhs_sz + rhs_sz, 0);
 
 		auto it_lhs = lhs.begin();
 		auto it_lhs_e = lhs.end();
@@ -1570,17 +1605,20 @@ public:
 		return result;
 	}
 
-	// Single word division
+	// Single word long division
 	// Fastests, but ONLY for single sized rhs
 	static std::pair<std::reference_wrapper<uint_t>, std::reference_wrapper<uint_t>> single_divmod(uint_t& quotient, uint_t& remainder, const uint_t& lhs, const uint_t& rhs) {
-		assert(rhs.size() == 1);
+		auto lhs_sz = lhs.size();
+		auto rhs_sz = rhs.size();
+
+		assert(rhs_sz == 1);
 		auto n = rhs.front();
 
 		auto rit_lhs = lhs.rbegin();
 		auto rit_lhs_e = lhs.rend();
 
 		auto q = uint_0();
-		q.resize(lhs.size(), 0);
+		q.resize(lhs_sz, 0);
 		auto rit_q = q.rbegin();
 
 		digit r = 0;
