@@ -197,7 +197,7 @@ public:
 				auto d = alphabet.ord(static_cast<int>(*encoded));
 				sum ^= d;
 				if (d >= alphabet.base) {
-					throw std::runtime_error("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
+					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
 				}
 				result = (result << alphabet.base_bits) | d;
 			}
@@ -206,7 +206,7 @@ public:
 			for (; encoded_size; --encoded_size, ++encoded) {
 				auto d = alphabet.ord(static_cast<int>(*encoded));
 				if (d >= alphabet.base) {
-					throw std::runtime_error("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
+					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
 				}
 				sum ^= d;
 				result = (result * uint_base) + d;
@@ -215,11 +215,11 @@ public:
 		if (checksum) {
 			auto d = alphabet.ord(static_cast<int>(*encoded));
 			if (d >= alphabet.base) {
-				throw std::runtime_error("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
+				throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
 			}
 			sum ^= d;
 			if (sum) {
-				throw std::runtime_error("Error: Invalid checksum");
+				throw std::invalid_argument("Error: Invalid checksum");
 			}
 		}
 	}

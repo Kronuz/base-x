@@ -2310,7 +2310,7 @@ public:
 				for (; encoded_size; --encoded_size, ++encoded) {
 					auto d = ord(static_cast<int>(*encoded));
 					if (d >= alphabet_base) {
-						throw std::runtime_error("Error: Not a digit in base " + std::to_string(alphabet_base) + ": '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
+						throw std::invalid_argument("Error: Not a digit in base " + std::to_string(alphabet_base) + ": '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
 					}
 					result = (result << alphabet_base_bits) | d;
 				}
@@ -2318,7 +2318,7 @@ public:
 				for (; encoded_size; --encoded_size, ++encoded) {
 					auto d = ord(static_cast<int>(*encoded));
 					if (d >= alphabet_base) {
-						throw std::runtime_error("Error: Not a digit in base " + std::to_string(alphabet_base) + ": '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
+						throw std::invalid_argument("Error: Not a digit in base " + std::to_string(alphabet_base) + ": '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
 					}
 					result = (result * uint_base) + d;
 				}
@@ -2336,7 +2336,7 @@ public:
 			std::copy(encoded, encoded + encoded_size, ptr + value_padding);
 			std::reverse(ptr, ptr + value_size * digit_octets);
 		} else {
-			throw std::runtime_error("Error: Cannot convert from base " + std::to_string(alphabet_base));
+			throw std::invalid_argument("Error: Cannot convert from base " + std::to_string(alphabet_base));
 		}
 
 		return result;
