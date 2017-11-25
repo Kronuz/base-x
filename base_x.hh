@@ -89,9 +89,11 @@ public:
 
 	// Get string representation of value
 	template <typename Result = std::string>
-	void encode(Result& result, const uinteger_t& num) const {
+	void encode(Result& result, const uinteger_t& num, bool checksum = false) const {
 		auto num_sz = num.size();
 		if (num_sz) {
+			int sum = 0;
+			auto alphabet_base = alphabet.base;
 			result.reserve(num_sz * alphabet.base_size);
 			if (alphabet.base_bits) {
 				std::size_t shift = 0;
@@ -102,152 +104,184 @@ public:
 					num >>= uinteger_t::half_digit_bits;
 					num |= (static_cast<uinteger_t::digit>(*ptr++) << uinteger_t::half_digit_bits);
 					do {
-						result.push_back(chr(static_cast<int>((num >> shift) & alphabet.base_mask)));
+						auto d = static_cast<int>((num >> shift) & alphabet.base_mask);
+						sum ^= d;
+						result.push_back(alphabet.chr(d));
 						shift += alphabet.base_bits;
 					} while (shift <= uinteger_t::half_digit_bits);
 					shift -= uinteger_t::half_digit_bits;
 				}
 				num >>= (shift + uinteger_t::half_digit_bits);
 				while (num) {
-					result.push_back(chr(static_cast<int>(num & alphabet.base_mask)));
+					auto d = static_cast<int>(num & alphabet.base_mask);
+					sum ^= d;
+					result.push_back(alphabet.chr(d));
 					num >>= alphabet.base_bits;
 				}
-				auto s = chr(0);
+				auto s = alphabet.chr(0);
 				auto rit_f = std::find_if(result.rbegin(), result.rend(), [s](const char& c) { return c != s; });
 				result.resize(result.rend() - rit_f); // shrink
 			} else {
+				uinteger_t uint_base = alphabet_base;
 				uinteger_t quotient = num;
-				uinteger_t uint_base = alphabet.base;
 				do {
 					auto r = quotient.divmod(uint_base);
-					result.push_back(chr(static_cast<int>(r.second)));
+					auto d = static_cast<int>(r.second);
+					sum ^= d;
+					result.push_back(alphabet.chr(d));
 					quotient = std::move(r.first);
 				} while (quotient);
 			}
 			std::reverse(result.begin(), result.end());
+			if (checksum) {
+				result.push_back(alphabet.chr(sum));
+			}
 		} else {
-			result.push_back(chr(0));
+			result.push_back(alphabet.chr(0));
 		}
 	}
 
 	template <typename Result = std::string>
-	Result encode(uinteger_t num) const {
+	Result encode(uinteger_t num, bool checksum = false) const {
 		Result result;
-		encode(result, num);
+		encode(result, num, checksum);
 		return result;
 	}
 
 	template <typename Result = std::string>
-	void encode(Result& result, const char* bytes, size_t size) const {
-		encode(result, uinteger_t(bytes, size, 256));
+	void encode(Result& result, const char* bytes, size_t size, bool checksum = false) const {
+		encode(result, uinteger_t(bytes, size, 256), checksum);
 	}
 
 	template <typename Result = std::string>
-	Result encode(const char* bytes, size_t size) const {
+	Result encode(const char* bytes, size_t size, bool checksum = false) const {
 		Result result;
-		encode(result, uinteger_t(bytes, size, 256));
+		encode(result, uinteger_t(bytes, size, 256), checksum);
 		return result;
 	}
 
 	template <typename Result = std::string, typename T, std::size_t N>
-	void encode(Result& result, T (&s)[N]) const {
-		encode(result, s, N - 1);
+	void encode(Result& result, T (&s)[N], bool checksum = false) const {
+		encode(result, s, N - 1, checksum);
 	}
 
 	template <typename Result = std::string, typename T, std::size_t N>
-	Result encode(T (&s)[N]) const {
+	Result encode(T (&s)[N], bool checksum = false) const {
 		Result result;
-		encode(result, s, N - 1);
+		encode(result, s, N - 1, checksum);
 		return result;
 	}
 
 	template <typename Result = std::string>
-	void encode(Result& result, const std::string& binary) const {
-		return encode(result, binary.data(), binary.size());
+	void encode(Result& result, const std::string& binary, bool checksum = false) const {
+		return encode(result, binary.data(), binary.size(), checksum);
 	}
 
 	template <typename Result = std::string>
-	Result encode(const std::string& binary) const {
+	Result encode(const std::string& binary, bool checksum = false) const {
 		Result result;
-		encode(result, binary.data(), binary.size());
+		encode(result, binary.data(), binary.size(), checksum);
 		return result;
 	}
 
-	void decode(uinteger_t& result, const char* encoded, std::size_t encoded_size) const {
+	void decode(uinteger_t& result, const char* encoded, std::size_t encoded_size, bool checksum = false) const {
+		result = 0;
+		int sum = 0;
+		if (checksum) {
+			--encoded_size;
+		}
 		if (alphabet.base_bits) {
 			for (; encoded_size; --encoded_size, ++encoded) {
-				auto d = ord(static_cast<int>(*encoded));
-				if (d == 0xff) {
+				auto d = alphabet.ord(static_cast<int>(*encoded));
+				sum ^= d;
+				if (d >= alphabet.base) {
 					throw std::runtime_error("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
 				}
 				result = (result << alphabet.base_bits) | d;
 			}
 		} else {
+			uinteger_t uint_base = alphabet.base;
 			for (; encoded_size; --encoded_size, ++encoded) {
-				auto d = ord(static_cast<int>(*encoded));
-				if (d == 0xff) {
+				auto d = alphabet.ord(static_cast<int>(*encoded));
+				if (d >= alphabet.base) {
 					throw std::runtime_error("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
 				}
-				result = (result * alphabet.base) + d;
+				sum ^= d;
+				result = (result * uint_base) + d;
+			}
+		}
+		if (checksum) {
+			auto d = alphabet.ord(static_cast<int>(*encoded));
+			if (d >= alphabet.base) {
+				throw std::runtime_error("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
+			}
+			sum ^= d;
+			if (sum) {
+				throw std::runtime_error("Error: Invalid checksum");
 			}
 		}
 	}
 
 	template <typename Result, typename = typename std::enable_if<!std::is_integral<Result>::value>::type>
-	void decode(Result& result, const char* encoded, size_t encoded_size) const {
+	void decode(Result& result, const char* encoded, size_t encoded_size, bool checksum = false) const {
 		uinteger_t num;
-		decode(num, encoded, encoded_size);
+		decode(num, encoded, encoded_size, checksum);
 		result = num.template str<Result>(256);
 	}
 
 	template <typename Result>
-	Result decode(const char* encoded, size_t encoded_size) const {
+	Result decode(const char* encoded, size_t encoded_size, bool checksum = false) const {
 		Result result;
-		decode(result, encoded, encoded_size);
+		decode(result, encoded, encoded_size, checksum);
 		return result;
 	}
 
 	template <typename Result = std::string, typename T, std::size_t N>
-	void decode(Result& result, T (&s)[N]) const {
-		decode(result, s, N - 1);
+	void decode(Result& result, T (&s)[N], bool checksum = false) const {
+		decode(result, s, N - 1, checksum);
 	}
 
 	template <typename Result = std::string, typename T, std::size_t N>
-	Result decode(T (&s)[N]) const {
+	Result decode(T (&s)[N], bool checksum = false) const {
 		Result result;
-		decode(result, s, N - 1);
+		decode(result, s, N - 1, checksum);
 		return result;
 	}
 
 	template <typename Result = std::string>
-	void decode(Result& result, const std::string& encoded) const {
-		decode(result, encoded.data(), encoded.size());
+	void decode(Result& result, const std::string& encoded, bool checksum = false) const {
+		decode(result, encoded.data(), encoded.size(), checksum);
 	}
 
 	template <typename Result = std::string>
-	Result decode(const std::string& encoded) const {
+	Result decode(const std::string& encoded, bool checksum = false) const {
 		Result result;
-		decode(result, encoded.data(), encoded.size());
+		decode(result, encoded.data(), encoded.size(), checksum);
 		return result;
 	}
 
-	bool is_valid(const char* encoded, size_t encoded_size) const {
+	bool is_valid(const char* encoded, size_t encoded_size, bool checksum = false) const {
+		int sum = 0;
 		for (; encoded_size; --encoded_size, ++encoded) {
-			auto d = ord(static_cast<int>(*encoded));
-			if (d == 0xff) {
+			auto d = alphabet.ord(static_cast<int>(*encoded));
+			if (d >= alphabet.base) {
 				return false;
 			}
+			sum ^= d;
+		}
+		if (checksum && sum) {
+			return false;
 		}
 		return true;
 	}
 
 	template <typename T, std::size_t N>
-	bool is_valid(T (&s)[N]) const {
-		return is_valid(s, N - 1);
+	bool is_valid(T (&s)[N], bool checksum = false) const {
+		return is_valid(s, N - 1, checksum);
 	}
 
-	bool is_valid(const std::string& encoded) const {
-		return is_valid(encoded.data(), encoded.size());
+	bool is_valid(const std::string& encoded, bool checksum = false) const {
+		return is_valid(encoded.data(), encoded.size(), checksum);
 	}
 };
 
