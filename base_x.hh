@@ -134,6 +134,9 @@ public:
 			}
 			std::reverse(result.begin(), result.end());
 			if (checksum) {
+				auto sz = result.size();
+				sum ^= (sz / alphabet.base) % alphabet.base;
+				sum ^= (sz % alphabet.base);
 				result.push_back(alphabet.chr(sum));
 			}
 		} else {
@@ -188,6 +191,9 @@ public:
 		result = 0;
 		int sum = 0;
 		if (checksum) {
+			auto sz = encoded_size - 1;
+			sum ^= (sz / alphabet.base) % alphabet.base;
+			sum ^= (sz % alphabet.base);
 			--encoded_size;
 		}
 		if (alphabet.base_bits) {
@@ -262,6 +268,11 @@ public:
 
 	bool is_valid(const char* encoded, size_t encoded_size, bool checksum = false) const {
 		int sum = 0;
+		if (checksum) {
+			auto sz = encoded_size - 1;
+			sum ^= (sz / alphabet.base) % alphabet.base;
+			sum ^= (sz % alphabet.base);
+		}
 		for (; encoded_size; --encoded_size, ++encoded) {
 			auto d = alphabet.ord(static_cast<int>(*encoded));
 			if (d >= alphabet.base) {
