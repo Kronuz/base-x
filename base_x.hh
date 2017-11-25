@@ -32,11 +32,11 @@ THE SOFTWARE.
 #include "uinteger_t.hh"
 
 class Alphabet {
-	unsigned char _ord[256];
+	char _ord[256];
 	char _chr[256];
 
 public:
-	const size_t base;
+	const int base;
 	const unsigned base_size;
 	const unsigned base_bits;
 	const uinteger_t::digit base_mask;
@@ -52,7 +52,7 @@ public:
 	{
 		for (auto i = 256; i; --i) {
 			_chr[i - 1] = 0;
-			_ord[i - 1] = 0xff;
+			_ord[i - 1] = -1;
 		}
 		for (auto i = ignored_size - 1; i; --i) {
 			auto ch = ignored[i - 1];
@@ -72,42 +72,21 @@ public:
 		}
 	}
 
-	std::array<uinteger_t, 256> ord() {
-		std::array<uinteger_t, 256> _;
-		for (int i = 0; i < 256; ++i) {
-			_[i] = _ord[i];
-		}
-		return _;
+	const char& chr(int ord) const {
+		return _chr[ord];
 	}
 
-	std::array<char, 256> chr() {
-		std::array<char, 256> _;
-		for (int i = 0; i < 256; ++i) {
-			_[i] = _chr[i];
-		}
-		return _;
+	const char& ord(int chr) const {
+		return _ord[chr];
 	}
 };
 
 class BaseX {
 	Alphabet alphabet;
 
-	std::array<uinteger_t, 256> _ord;
-	std::array<char, 256> _chr;
-
 public:
 	BaseX(const Alphabet& a) :
-		alphabet(a),
-		_ord(alphabet.ord()),
-		_chr(alphabet.chr()) { }
-
-	const char& chr(int ord) const {
-		return _chr[ord];
-	}
-
-	const uinteger_t& ord(int chr) const {
-		return _ord[chr];
-	}
+		alphabet(a) { }
 
 	// Get string representation of value
 	template <typename Result = std::string>
