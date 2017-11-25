@@ -40,8 +40,8 @@ public:
 	const unsigned base_bits;
 	const uinteger_t::digit base_mask;
 
-	template <typename A, std::size_t alphabet_size, typename I, std::size_t ignored_size>
-	constexpr Alphabet(A (&alphabet)[alphabet_size], I (&ignored)[ignored_size], bool ignore_case = false) :
+	template <typename A, std::size_t alphabet_size>
+	constexpr Alphabet(A (&alphabet)[alphabet_size], bool ignore_case = false) :
 		_chr(),
 		_ord(),
 		base(alphabet_size - 1),
@@ -52,10 +52,6 @@ public:
 		for (auto i = 256; i; --i) {
 			_chr[i - 1] = 0;
 			_ord[i - 1] = 0xff;
-		}
-		for (auto i = ignored_size - 1; i; --i) {
-			auto ch = ignored[i - 1];
-			_ord[(int)ch] = 0;
 		}
 		for (auto i = base; i; --i) {
 			auto ch = alphabet[i - 1];
@@ -301,7 +297,7 @@ public:
 namespace base2 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base2() {
-		constexpr Alphabet alphabet("01", " \n\r\t");
+		constexpr Alphabet alphabet("01");
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
@@ -311,7 +307,7 @@ namespace base2 {
 namespace base8 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base8() {
-		constexpr Alphabet alphabet("01234567", " \n\r\t");
+		constexpr Alphabet alphabet("01234567");
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
@@ -321,7 +317,7 @@ namespace base8 {
 namespace base11 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base11() {
-		constexpr Alphabet alphabet("0123456789a", " \n\r\t", true);
+		constexpr Alphabet alphabet("0123456789a", true);
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
@@ -331,7 +327,7 @@ namespace base11 {
 namespace base16 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base16() {
-		constexpr Alphabet alphabet("0123456789abcdef", " \n\r\t", true);
+		constexpr Alphabet alphabet("0123456789abcdef", true);
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
@@ -341,7 +337,7 @@ namespace base16 {
 namespace base32 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base32() {
-		constexpr Alphabet alphabet("0123456789ABCDEFGHJKMNPQRSTVWXYZ", " \n\r\t", true);
+		constexpr Alphabet alphabet("0123456789ABCDEFGHJKMNPQRSTVWXYZ", true);
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
@@ -351,7 +347,7 @@ namespace base32 {
 namespace base36 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base36() {
-		constexpr Alphabet alphabet("0123456789abcdefghijklmnopqrstuvwxyz", " \n\r\t", true);
+		constexpr Alphabet alphabet("0123456789abcdefghijklmnopqrstuvwxyz", true);
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
@@ -361,25 +357,25 @@ namespace base36 {
 namespace base58 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& gmp() {
-		constexpr Alphabet alphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv", " \n\r\t");
+		constexpr Alphabet alphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv");
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& bitcoin() {
-		constexpr Alphabet alphabet("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", " \n\r\t");
+		constexpr Alphabet alphabet("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz");
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& ripple() {
-		constexpr Alphabet alphabet("rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz", " \n\r\t");
+		constexpr Alphabet alphabet("rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz");
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& flickr() {
-		constexpr Alphabet alphabet("123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ", " \n\r\t");
+		constexpr Alphabet alphabet("123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ");
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
@@ -393,13 +389,13 @@ namespace base58 {
 namespace base62 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& inverted() {
-		constexpr Alphabet alphabet("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", " \n\r\t");
+		constexpr Alphabet alphabet("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base62() {
-		constexpr Alphabet alphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", " \n\r\t");
+		constexpr Alphabet alphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
@@ -409,13 +405,13 @@ namespace base62 {
 namespace base64 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& urlsafe() {
-		constexpr Alphabet alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", " \n\r\t");
+		constexpr Alphabet alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_");
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base64() {
-		constexpr Alphabet alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", " \n\r\t");
+		constexpr Alphabet alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/");
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
@@ -425,7 +421,7 @@ namespace base64 {
 namespace base66 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base66() {
-		constexpr Alphabet alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~", " \n\r\t");
+		constexpr Alphabet alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~");
 		static BaseX encoder(alphabet);
 		return encoder;
 	}
