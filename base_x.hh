@@ -26,14 +26,13 @@ THE SOFTWARE.
 #ifndef __BASE_X__H_
 #define __BASE_X__H_
 
-#include <array>
 #include <algorithm>
 
 #include "uinteger_t.hh"
 
 class Alphabet {
-	char _ord[256];
 	char _chr[256];
+	unsigned char _ord[256];
 
 public:
 	const int base;
@@ -43,16 +42,16 @@ public:
 
 	template <typename A, std::size_t alphabet_size, typename I, std::size_t ignored_size>
 	constexpr Alphabet(A (&alphabet)[alphabet_size], I (&ignored)[ignored_size], bool ignore_case = false) :
-		_ord(),
 		_chr(),
+		_ord(),
 		base(alphabet_size - 1),
-		base_size(uinteger_t::constexpr_base_size(base)),
-		base_bits(uinteger_t::constexpr_base_bits(base)),
+		base_size(uinteger_t::base_size(base)),
+		base_bits(uinteger_t::base_bits(base)),
 		base_mask(base - 1)
 	{
 		for (auto i = 256; i; --i) {
 			_chr[i - 1] = 0;
-			_ord[i - 1] = -1;
+			_ord[i - 1] = 0xff;
 		}
 		for (auto i = ignored_size - 1; i; --i) {
 			auto ch = ignored[i - 1];
@@ -76,7 +75,7 @@ public:
 		return _chr[ord];
 	}
 
-	const char& ord(int chr) const {
+	const unsigned char& ord(int chr) const {
 		return _ord[chr];
 	}
 };
