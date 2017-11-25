@@ -60,6 +60,23 @@ TEST(base64, Encoder) {
 	EXPECT_EQ(base64::base64().encode("ABCDEFGHIJKLMNOPQRSTUVXYZ"), "BBQkNERUZHSElKS0xNTk9QUVJTVFVWWFla");
 }
 
+TEST(BaseX, checksums) {
+	EXPECT_EQ(base64::base64().encode("Hello world!"), "SGVsbG8gd29ybGQh");
+	EXPECT_EQ(base64::base64().encode("Hello world!", true), "SGVsbG8gd29ybGQh0");
+
+	EXPECT_EQ(base64::base64().decode("SGVsbG8gd29ybGQh"), "Hello world!");
+	EXPECT_EQ(base64::base64().decode("SGVsbG8gd29ybGQh0", true), "Hello world!");
+
+	EXPECT_EQ(base62::base62().encode("Hello world!"), "T8dgcjRGuYUueWht");
+	EXPECT_EQ(base62::base62().encode("Hello world!", true), "T8dgcjRGuYUueWhtW");
+
+	EXPECT_EQ(base62::base62().decode("T8dgcjRGuYUueWht"), "Hello world!");
+	EXPECT_EQ(base62::base62().decode("T8dgcjRGuYUueWhtW", true), "Hello world!");
+
+	EXPECT_EQ(base62::base62().is_valid("T8dgcjRGuYUueWhtW", true), true);
+	EXPECT_EQ(base62::base62().is_valid("Some random text!", true), false);
+}
+
 TEST(base58, ShouldEncodeAndDecodeIntegers) {
 	auto data = 987654321;
 
