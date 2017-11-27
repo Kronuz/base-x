@@ -184,7 +184,8 @@ public:
 			}
 			if (flags & BaseX::with_checksum) {
 				auto sz = result.size();
-				sum += (sz + sz / size) % size;
+				sz = (sz + sz / size) % size;
+				sum += sz;
 				sum = (size - sum % size) % size;
 				result.push_back(chr(sum));
 			}
@@ -241,7 +242,8 @@ public:
 		int sum = 0;
 		if (flags & BaseX::with_checksum) {
 			auto sz = encoded_size - 1;
-			sum += (sz + sz / size) % size;
+			sz = (sz + sz / size) % size;
+			sum += sz;
 			--encoded_size;
 		}
 
@@ -285,35 +287,29 @@ public:
 		result >>= (bp & 7);
 
 		if (flags & BaseX::with_check) {
-			for (; encoded_size; --encoded_size, ++encoded) {
-				auto c = *encoded++;
-				auto d = ord(static_cast<int>(c));
-				if (d < 0) continue; // ignored character
-				if (d >= size) {
-					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
-				}
-				auto chk = static_cast<int>(result % size);
-				if (d != chk) {
-					throw std::invalid_argument("Error: Invalid check");
-				}
-				sum += chk;
-				break;
+			auto c = *encoded;
+			auto d = ord(static_cast<int>(c));
+			if (d < 0 || d >= size) {
+				throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
 			}
+			auto chk = static_cast<int>(result % size);
+			if (d != chk) {
+				throw std::invalid_argument("Error: Invalid check");
+			}
+			sum += chk;
+
+			++encoded;
 		}
 
 		if (flags & BaseX::with_checksum) {
-			for (; encoded_size; --encoded_size, ++encoded) {
-				auto c = *encoded;
-				auto d = ord(static_cast<int>(c));
-				if (d < 0) continue; // ignored character
-				if (d >= size) {
-					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
-				}
-				sum += d;
-				if (sum % size) {
-					throw std::invalid_argument("Error: Invalid checksum");
-				}
-				break;
+			auto c = *encoded;
+			auto d = ord(static_cast<int>(c));
+			if (d < 0 || d >= size) {
+				throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
+			}
+			sum += d;
+			if (sum % size) {
+				throw std::invalid_argument("Error: Invalid checksum");
 			}
 		}
 	}
