@@ -27,9 +27,9 @@ THE SOFTWARE.
 #include "base_x.hh"
 
 
-static constexpr BaseX test_base2("01", "");
-static constexpr BaseX test_base16("0123456789abcdef", "");
-static constexpr BaseX test_base58("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "");
+static constexpr BaseX test_base2("01", "", "");
+static constexpr BaseX test_base16("0123456789abcdef", "", "");
+static constexpr BaseX test_base58("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "", "");
 
 
 TEST(UUID, Encode) {
@@ -87,7 +87,7 @@ TEST(base16, Decoder) {
 }
 
 TEST(base32, Encoder) {
-	// Note base64() encoding is NOT the same as the standard, which here should be IFBEGRCFIZDUQSKKJNGE2TSPKBIVEU2UKVLFOWCZLI
+	// Note base64() encoding is NOT the same as the standard (rfc4648)
 	EXPECT_EQ(base32::base32().encode("A"), "CB");
 	EXPECT_EQ(base32::base32().encode("AB"), "QKC");
 	EXPECT_EQ(base32::base32().encode("ABC"), "ECQSD");
@@ -96,18 +96,17 @@ TEST(base32, Encoder) {
 	EXPECT_EQ(base32::base32().encode("ABCDEF"), "CBIJBUIRKG");
 	EXPECT_EQ(base32::base32().encode("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "CBIJBUIRKGI5EESSSLJRGU4T2QKFJFGVCVKZLVQWK2");
 
-	// rfc4648() is the same as the standard, but without padding.
-	EXPECT_EQ(base32::rfc4648().encode("A"), "IE");
-	EXPECT_EQ(base32::rfc4648().encode("AB"), "IFBA");
-	EXPECT_EQ(base32::rfc4648().encode("ABC"), "IFBEG");
-	EXPECT_EQ(base32::rfc4648().encode("ABCD"), "IFBEGRA");
+	EXPECT_EQ(base32::rfc4648().encode("A"), "IE======");
+	EXPECT_EQ(base32::rfc4648().encode("AB"), "IFBA====");
+	EXPECT_EQ(base32::rfc4648().encode("ABC"), "IFBEG===");
+	EXPECT_EQ(base32::rfc4648().encode("ABCD"), "IFBEGRA=");
 	EXPECT_EQ(base32::rfc4648().encode("ABCDE"), "IFBEGRCF");
-	EXPECT_EQ(base32::rfc4648().encode("ABCDEF"), "IFBEGRCFIY");
-	EXPECT_EQ(base32::rfc4648().encode("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "IFBEGRCFIZDUQSKKJNGE2TSPKBIVEU2UKVLFOWCZLI");
+	EXPECT_EQ(base32::rfc4648().encode("ABCDEF"), "IFBEGRCFIY======");
+	EXPECT_EQ(base32::rfc4648().encode("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "IFBEGRCFIZDUQSKKJNGE2TSPKBIVEU2UKVLFOWCZLI======");
 }
 
 TEST(base32, Decoder) {
-	// Note base64() encoding is NOT the same as the standard, which here should be IFBEGRCFIZDUQSKKJNGE2TSPKBIVEU2UKVLFOWCZLI
+	// Note base64() encoding is NOT the same as the standard (rfc4648)
 	EXPECT_EQ(base32::base32().decode("CB"), "A");
 	EXPECT_EQ(base32::base32().decode("QKC"), "AB");
 	EXPECT_EQ(base32::base32().decode("ECQSD"), "ABC");
@@ -116,14 +115,13 @@ TEST(base32, Decoder) {
 	EXPECT_EQ(base32::base32().decode("CBIJBUIRKG"), "ABCDEF");
 	EXPECT_EQ(base32::base32().decode("CBIJBUIRKGI5EESSSLJRGU4T2QKFJFGVCVKZLVQWK2"), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
-	// rfc4648() is the same as the standard, but without padding.
-	EXPECT_EQ(base32::rfc4648().decode("IE"), "A");
-	EXPECT_EQ(base32::rfc4648().decode("IFBA"), "AB");
-	EXPECT_EQ(base32::rfc4648().decode("IFBEG"), "ABC");
-	EXPECT_EQ(base32::rfc4648().decode("IFBEGRA"), "ABCD");
+	EXPECT_EQ(base32::rfc4648().decode("IE======"), "A");
+	EXPECT_EQ(base32::rfc4648().decode("IFBA===="), "AB");
+	EXPECT_EQ(base32::rfc4648().decode("IFBEG==="), "ABC");
+	EXPECT_EQ(base32::rfc4648().decode("IFBEGRA="), "ABCD");
 	EXPECT_EQ(base32::rfc4648().decode("IFBEGRCF"), "ABCDE");
-	EXPECT_EQ(base32::rfc4648().decode("IFBEGRCFIY"), "ABCDEF");
-	EXPECT_EQ(base32::rfc4648().decode("IFBEGRCFIZDUQSKKJNGE2TSPKBIVEU2UKVLFOWCZLI"), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+	EXPECT_EQ(base32::rfc4648().decode("IFBEGRCFIY======"), "ABCDEF");
+	EXPECT_EQ(base32::rfc4648().decode("IFBEGRCFIZDUQSKKJNGE2TSPKBIVEU2UKVLFOWCZLI======"), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 }
 
 TEST(base58, Encoder) {
@@ -141,7 +139,7 @@ TEST(base62, Encoder) {
 }
 
 TEST(base64, Encoder) {
-	// Note Base64 encoding is NOT the same as the standard, which here should be QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo==
+	// Note Base64 encoding is NOT the same as the standard (rfc4648)
 	EXPECT_EQ(base64::base64().encode("A"), "BB");
 	EXPECT_EQ(base64::base64().encode("AB"), "EFC");
 	EXPECT_EQ(base64::base64().encode("ABC"), "QUJD");
@@ -150,18 +148,17 @@ TEST(base64, Encoder) {
 	EXPECT_EQ(base64::base64().encode("ABCDEF"), "QUJDREVG");
 	EXPECT_EQ(base64::base64().encode("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "EFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFla");
 
-	// rfc4648() is the same as the standard, but without padding.
-	EXPECT_EQ(base64::rfc4648().encode("A"), "QQ");
-	EXPECT_EQ(base64::rfc4648().encode("AB"), "QUI");
+	EXPECT_EQ(base64::rfc4648().encode("A"), "QQ==");
+	EXPECT_EQ(base64::rfc4648().encode("AB"), "QUI=");
 	EXPECT_EQ(base64::rfc4648().encode("ABC"), "QUJD");
-	EXPECT_EQ(base64::rfc4648().encode("ABCD"), "QUJDRA");
-	EXPECT_EQ(base64::rfc4648().encode("ABCDE"), "QUJDREU");
+	EXPECT_EQ(base64::rfc4648().encode("ABCD"), "QUJDRA==");
+	EXPECT_EQ(base64::rfc4648().encode("ABCDE"), "QUJDREU=");
 	EXPECT_EQ(base64::rfc4648().encode("ABCDEF"), "QUJDREVG");
-	EXPECT_EQ(base64::rfc4648().encode("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo");
+	EXPECT_EQ(base64::rfc4648().encode("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=");
 }
 
 TEST(base64, Decoder) {
-	// Note Base64 encoding is NOT the same as the standard, which here should be QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo==
+	// Note Base64 encoding is NOT the same as the standard (rfc4648)
 	EXPECT_EQ(base64::base64().decode("BB"), "A");
 	EXPECT_EQ(base64::base64().decode("EFC"), "AB");
 	EXPECT_EQ(base64::base64().decode("QUJD"), "ABC");
@@ -170,14 +167,13 @@ TEST(base64, Decoder) {
 	EXPECT_EQ(base64::base64().decode("QUJDREVG"), "ABCDEF");
 	EXPECT_EQ(base64::base64().decode("EFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFla"), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
-	// rfc4648() is the same as the standard, but without padding.
-	EXPECT_EQ(base64::rfc4648().decode("QQ"), "A");
-	EXPECT_EQ(base64::rfc4648().decode("QUI"), "AB");
+	EXPECT_EQ(base64::rfc4648().decode("QQ=="), "A");
+	EXPECT_EQ(base64::rfc4648().decode("QUI="), "AB");
 	EXPECT_EQ(base64::rfc4648().decode("QUJD"), "ABC");
-	EXPECT_EQ(base64::rfc4648().decode("QUJDRA"), "ABCD");
-	EXPECT_EQ(base64::rfc4648().decode("QUJDREU"), "ABCDE");
+	EXPECT_EQ(base64::rfc4648().decode("QUJDRA=="), "ABCD");
+	EXPECT_EQ(base64::rfc4648().decode("QUJDREU="), "ABCDE");
 	EXPECT_EQ(base64::rfc4648().decode("QUJDREVG"), "ABCDEF");
-	EXPECT_EQ(base64::rfc4648().decode("QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo"), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+	EXPECT_EQ(base64::rfc4648().decode("QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo="), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 }
 
 TEST(base58, ShouldEncodeAndDecodeIntegers) {

@@ -42,6 +42,8 @@ class BaseX {
 	const unsigned base_size;
 	const unsigned base_bits;
 	const unsigned block_size;
+	const unsigned padding_size;
+	const char padding;
 	const uinteger_t::digit base_mask;
 
 	const char& chr(int ord) const {
@@ -53,21 +55,23 @@ class BaseX {
 	}
 
 public:
-	template <typename A, std::size_t alphabet_size, typename I, std::size_t ignored_size>
-	constexpr BaseX(A (&alphabet)[alphabet_size], I (&ignored)[ignored_size], int flags = 0) :
+	template <typename A, std::size_t alphabet_size1, typename I, std::size_t ignored_size1, typename P, std::size_t padding_size1>
+	constexpr BaseX(A (&alphabet)[alphabet_size1], I (&ignored)[ignored_size1], P (&padding_string)[padding_size1], int _flags = 0) :
 		_chr(),
 		_ord(),
-		base(alphabet_size - 1),
+		base(alphabet_size1 - 1),
 		base_size(uinteger_t::base_size(base)),
 		base_bits(uinteger_t::base_bits(base)),
-		block_size((flags & BLOCK_PADDING) ? base_bits : 0),
+		block_size((_flags & BLOCK_PADDING) ? base_bits : 0),
+		padding_size(padding_size1 - 1),
+		padding(padding_size ? padding_string[0] : '\0'),
 		base_mask(base - 1)
 	{
 		for (auto i = 256; i; --i) {
 			_chr[i - 1] = 0;
 			_ord[i - 1] = 0xff;
 		}
-		for (auto i = ignored_size - 1; i; --i) {
+		for (auto i = ignored_size1 - 1; i; --i) {
 			auto ch = ignored[i - 1];
 			_ord[(int)ch] = 0;
 		}
@@ -75,7 +79,7 @@ public:
 			auto ch = alphabet[i - 1];
 			_chr[i - 1] = ch;
 			_ord[(int)ch] = i - 1;
-			if (flags & IGNORE_CASE) {
+			if (_flags & IGNORE_CASE) {
 				if (ch >= 'A' && ch <='Z') {
 					_ord[(int)ch - 'A' + 'a'] = i - 1;
 				} else if (ch >= 'a' && ch <='z') {
@@ -96,7 +100,7 @@ public:
 			int bp = 0;
 			if (block_size) {
 				bp = ((num.bits() + 7) & 0xf8) % block_size;
-				bp = bp ? block_size - bp : 0;
+				bp = bp ? (block_size - bp) % block_size : 0;
 			}
 			uinteger_t quotient = num << bp;
 			if (base_bits) {
@@ -136,6 +140,11 @@ public:
 				} while (quotient);
 			}
 			std::reverse(result.begin(), result.end());
+			if (padding_size) {
+				Result p;
+				p.resize((padding_size - (result.size() % padding_size)) % padding_size, padding);
+				result.append(p);
+			}
 			if (checksum) {
 				auto sz = result.size();
 				sum ^= (sz / base) % base;
@@ -199,35 +208,42 @@ public:
 			sum ^= (sz % base);
 			--encoded_size;
 		}
+
 		int bp = 0;
-		if (block_size) {
-			bp = (encoded_size * block_size) % 8;
-		}
+
 		if (base_bits) {
 			for (; encoded_size; --encoded_size, ++encoded) {
-				auto d = ord(static_cast<int>(*encoded));
+				auto c = *encoded;
+				if (c == padding) break;
+				auto d = ord(static_cast<int>(c));
 				sum ^= d;
 				if (d >= base) {
 					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
 				}
 				result = (result << base_bits) | d;
+				bp += block_size;
 			}
 		} else {
 			uinteger_t uint_base = base;
 			for (; encoded_size; --encoded_size, ++encoded) {
-				auto d = ord(static_cast<int>(*encoded));
+				auto c = *encoded;
+				if (c == padding) break;
+				auto d = ord(static_cast<int>(c));
 				if (d >= base) {
 					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
 				}
 				sum ^= d;
 				result = (result * uint_base) + d;
+				bp += block_size;
 			}
 		}
 
-		result >>= bp;
+		result >>= (bp & 7);
 
 		if (checksum) {
-			auto d = ord(static_cast<int>(*encoded));
+			for (; encoded_size; --encoded_size, ++encoded);
+			auto c = *encoded;
+			auto d = ord(static_cast<int>(c));
 			if (d >= base) {
 				throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
 			}
@@ -310,7 +326,7 @@ public:
 namespace base2 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base2() {
-		static constexpr BaseX encoder("01", "");
+		static constexpr BaseX encoder("01", "", "");
 		return encoder;
 	}
 }
@@ -319,7 +335,7 @@ namespace base2 {
 namespace base8 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base8() {
-		static constexpr BaseX encoder("01234567", "");
+		static constexpr BaseX encoder("01234567", "", "");
 		return encoder;
 	}
 }
@@ -328,7 +344,7 @@ namespace base8 {
 namespace base11 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base11() {
-		static constexpr BaseX encoder("0123456789a", "", IGNORE_CASE);
+		static constexpr BaseX encoder("0123456789a", "", "", IGNORE_CASE);
 		return encoder;
 	}
 }
@@ -337,12 +353,12 @@ namespace base11 {
 namespace base16 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base16() {
-		static constexpr BaseX encoder("0123456789abcdef", "", IGNORE_CASE);
+		static constexpr BaseX encoder("0123456789abcdef", "", "", IGNORE_CASE);
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& rfc4648() {
-		static constexpr BaseX encoder("0123456789ABCDEF", "=\n\r");
+		static constexpr BaseX encoder("0123456789ABCDEF", "", "");
 		return encoder;
 	}
 }
@@ -351,23 +367,23 @@ namespace base16 {
 namespace base32 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base32() {
-		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", "", IGNORE_CASE);
+		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", "", "", IGNORE_CASE);
 		return encoder;
 	}
 	const BaseX& hex() {
-		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUV", "", IGNORE_CASE);
+		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUV", "", "", IGNORE_CASE);
 		return encoder;
 	}
 	const BaseX& rfc4648() {
-		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", "=\n\r", BLOCK_PADDING);
+		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", "\n\r", "========", BLOCK_PADDING);
 		return encoder;
 	}
 	const BaseX& rfc4648hex() {
-		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUV", "=\n\r", BLOCK_PADDING);
+		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUV", "\n\r", "========", BLOCK_PADDING);
 		return encoder;
 	}
 	const BaseX& crockford() {
-		static constexpr BaseX encoder("0123456789ABCDEFGHJKMNPQRSTVWXYZ", "", IGNORE_CASE);
+		static constexpr BaseX encoder("0123456789ABCDEFGHJKMNPQRSTVWXYZ", "", "", IGNORE_CASE);
 		return encoder;
 	}
 }
@@ -376,7 +392,7 @@ namespace base32 {
 namespace base36 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base36() {
-		static constexpr BaseX encoder("0123456789abcdefghijklmnopqrstuvwxyz", "", IGNORE_CASE);
+		static constexpr BaseX encoder("0123456789abcdefghijklmnopqrstuvwxyz", "", "", IGNORE_CASE);
 		return encoder;
 	}
 }
@@ -385,22 +401,22 @@ namespace base36 {
 namespace base58 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& gmp() {
-		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv", "");
+		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv", "", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& bitcoin() {
-		static constexpr BaseX encoder("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "");
+		static constexpr BaseX encoder("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& ripple() {
-		static constexpr BaseX encoder("rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz", "");
+		static constexpr BaseX encoder("rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz", "", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& flickr() {
-		static constexpr BaseX encoder("123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ", "");
+		static constexpr BaseX encoder("123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ", "", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
@@ -413,12 +429,12 @@ namespace base58 {
 namespace base62 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& inverted() {
-		static constexpr BaseX encoder("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", "");
+		static constexpr BaseX encoder("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", "", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base62() {
-		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "");
+		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "", "");
 		return encoder;
 	}
 }
@@ -427,22 +443,22 @@ namespace base62 {
 namespace base64 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base64() {
-		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", "");
+		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", "", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& url() {
-		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "");
+		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& rfc4648() {
-		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", "=\n\r", BLOCK_PADDING);
+		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", "\n\r", "====", BLOCK_PADDING);
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& rfc4648url() {
-		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "=\n\r", BLOCK_PADDING);
+		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "\n\r", "====", BLOCK_PADDING);
 		return encoder;
 	}
 }
@@ -451,7 +467,7 @@ namespace base64 {
 namespace base66 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base66() {
-		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~", "");
+		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~", "", "");
 		return encoder;
 	}
 }
