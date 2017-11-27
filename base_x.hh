@@ -342,7 +342,7 @@ namespace base16 {
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& rfc4648() {
-		static constexpr BaseX encoder("0123456789ABCDEF", "= \n\r\t", IGNORE_CASE);
+		static constexpr BaseX encoder("0123456789ABCDEF", "=\n\r");
 		return encoder;
 	}
 }
@@ -359,11 +359,11 @@ namespace base32 {
 		return encoder;
 	}
 	const BaseX& rfc4648() {
-		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", "= \n\r\t", IGNORE_CASE | BLOCK_PADDING);
+		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", "=\n\r", BLOCK_PADDING);
 		return encoder;
 	}
 	const BaseX& rfc4648hex() {
-		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUV", "= \n\r\t", IGNORE_CASE | BLOCK_PADDING);
+		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUV", "=\n\r", BLOCK_PADDING);
 		return encoder;
 	}
 	const BaseX& crockford() {
@@ -437,12 +437,12 @@ namespace base64 {
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& rfc4648() {
-		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", "= \n\r\t", BLOCK_PADDING);
+		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", "=\n\r", BLOCK_PADDING);
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& rfc4648url() {
-		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "= \n\r\t", BLOCK_PADDING);
+		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "=\n\r", BLOCK_PADDING);
 		return encoder;
 	}
 }
