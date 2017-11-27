@@ -33,19 +33,28 @@ THE SOFTWARE.
 #define IGNORE_CASE    1
 #define BLOCK_PADDING  2
 
-class Alphabet {
+
+class BaseX {
 	char _chr[256];
 	unsigned char _ord[256];
 
-public:
 	const int base;
 	const unsigned base_size;
 	const unsigned base_bits;
 	const unsigned block_size;
 	const uinteger_t::digit base_mask;
 
+	const char& chr(int ord) const {
+		return _chr[ord];
+	}
+
+	const unsigned char& ord(int chr) const {
+		return _ord[chr];
+	}
+
+public:
 	template <typename A, std::size_t alphabet_size, typename I, std::size_t ignored_size>
-	constexpr Alphabet(A (&alphabet)[alphabet_size], I (&ignored)[ignored_size], int flags = 0) :
+	constexpr BaseX(A (&alphabet)[alphabet_size], I (&ignored)[ignored_size], int flags = 0) :
 		_chr(),
 		_ord(),
 		base(alphabet_size - 1),
@@ -76,37 +85,21 @@ public:
 		}
 	}
 
-	const char& chr(int ord) const {
-		return _chr[ord];
-	}
-
-	const unsigned char& ord(int chr) const {
-		return _ord[chr];
-	}
-};
-
-class BaseX {
-	Alphabet alphabet;
-
-public:
-	BaseX(const Alphabet& a) :
-		alphabet(a) { }
-
 	// Get string representation of value
 	template <typename Result = std::string>
 	void encode(Result& result, const uinteger_t& num, bool checksum = false) const {
 		auto num_sz = num.size();
 		if (num_sz) {
 			int sum = 0;
-			auto alphabet_base = alphabet.base;
-			result.reserve(num_sz * alphabet.base_size);
+			auto alphabet_base = base;
+			result.reserve(num_sz * base_size);
 			int bp = 0;
-			if (alphabet.block_size) {
-				bp = ((num.bits() + 7) & 0xf8) % alphabet.block_size;
-				bp = bp ? alphabet.block_size - bp : 0;
+			if (block_size) {
+				bp = ((num.bits() + 7) & 0xf8) % block_size;
+				bp = bp ? block_size - bp : 0;
 			}
 			uinteger_t quotient = num << bp;
-			if (alphabet.base_bits) {
+			if (base_bits) {
 				std::size_t shift = 0;
 				auto ptr = reinterpret_cast<const uinteger_t::half_digit*>(quotient.data());
 				uinteger_t::digit v = *ptr++;
@@ -115,21 +108,21 @@ public:
 					v >>= uinteger_t::half_digit_bits;
 					v |= (static_cast<uinteger_t::digit>(*ptr++) << uinteger_t::half_digit_bits);
 					do {
-						auto d = static_cast<int>((v >> shift) & alphabet.base_mask);
+						auto d = static_cast<int>((v >> shift) & base_mask);
 						sum ^= d;
-						result.push_back(alphabet.chr(d));
-						shift += alphabet.base_bits;
+						result.push_back(chr(d));
+						shift += base_bits;
 					} while (shift <= uinteger_t::half_digit_bits);
 					shift -= uinteger_t::half_digit_bits;
 				}
 				v >>= (shift + uinteger_t::half_digit_bits);
 				while (v) {
-					auto d = static_cast<int>(v & alphabet.base_mask);
+					auto d = static_cast<int>(v & base_mask);
 					sum ^= d;
-					result.push_back(alphabet.chr(d));
-					v >>= alphabet.base_bits;
+					result.push_back(chr(d));
+					v >>= base_bits;
 				}
-				auto s = alphabet.chr(0);
+				auto s = chr(0);
 				auto rit_f = std::find_if(result.rbegin(), result.rend(), [s](const char& c) { return c != s; });
 				result.resize(result.rend() - rit_f); // shrink
 			} else {
@@ -138,19 +131,19 @@ public:
 					auto r = quotient.divmod(uint_base);
 					auto d = static_cast<int>(r.second);
 					sum ^= d;
-					result.push_back(alphabet.chr(d));
+					result.push_back(chr(d));
 					quotient = std::move(r.first);
 				} while (quotient);
 			}
 			std::reverse(result.begin(), result.end());
 			if (checksum) {
 				auto sz = result.size();
-				sum ^= (sz / alphabet.base) % alphabet.base;
-				sum ^= (sz % alphabet.base);
-				result.push_back(alphabet.chr(sum));
+				sum ^= (sz / base) % base;
+				sum ^= (sz % base);
+				result.push_back(chr(sum));
 			}
 		} else {
-			result.push_back(alphabet.chr(0));
+			result.push_back(chr(0));
 		}
 	}
 
@@ -202,28 +195,28 @@ public:
 		int sum = 0;
 		if (checksum) {
 			auto sz = encoded_size - 1;
-			sum ^= (sz / alphabet.base) % alphabet.base;
-			sum ^= (sz % alphabet.base);
+			sum ^= (sz / base) % base;
+			sum ^= (sz % base);
 			--encoded_size;
 		}
 		int bp = 0;
-		if (alphabet.block_size) {
-			bp = (encoded_size * alphabet.block_size) % 8;
+		if (block_size) {
+			bp = (encoded_size * block_size) % 8;
 		}
-		if (alphabet.base_bits) {
+		if (base_bits) {
 			for (; encoded_size; --encoded_size, ++encoded) {
-				auto d = alphabet.ord(static_cast<int>(*encoded));
+				auto d = ord(static_cast<int>(*encoded));
 				sum ^= d;
-				if (d >= alphabet.base) {
+				if (d >= base) {
 					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
 				}
-				result = (result << alphabet.base_bits) | d;
+				result = (result << base_bits) | d;
 			}
 		} else {
-			uinteger_t uint_base = alphabet.base;
+			uinteger_t uint_base = base;
 			for (; encoded_size; --encoded_size, ++encoded) {
-				auto d = alphabet.ord(static_cast<int>(*encoded));
-				if (d >= alphabet.base) {
+				auto d = ord(static_cast<int>(*encoded));
+				if (d >= base) {
 					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
 				}
 				sum ^= d;
@@ -234,8 +227,8 @@ public:
 		result >>= bp;
 
 		if (checksum) {
-			auto d = alphabet.ord(static_cast<int>(*encoded));
-			if (d >= alphabet.base) {
+			auto d = ord(static_cast<int>(*encoded));
+			if (d >= base) {
 				throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
 			}
 			sum ^= d;
@@ -287,12 +280,12 @@ public:
 		int sum = 0;
 		if (checksum) {
 			auto sz = encoded_size - 1;
-			sum ^= (sz / alphabet.base) % alphabet.base;
-			sum ^= (sz % alphabet.base);
+			sum ^= (sz / base) % base;
+			sum ^= (sz % base);
 		}
 		for (; encoded_size; --encoded_size, ++encoded) {
-			auto d = alphabet.ord(static_cast<int>(*encoded));
-			if (d >= alphabet.base) {
+			auto d = ord(static_cast<int>(*encoded));
+			if (d >= base) {
 				return false;
 			}
 			sum ^= d;
@@ -313,13 +306,11 @@ public:
 	}
 };
 
-
 // base2
 namespace base2 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base2() {
-		constexpr Alphabet alphabet("01", "");
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("01", "");
 		return encoder;
 	}
 }
@@ -328,8 +319,7 @@ namespace base2 {
 namespace base8 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base8() {
-		constexpr Alphabet alphabet("01234567", "");
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("01234567", "");
 		return encoder;
 	}
 }
@@ -338,8 +328,7 @@ namespace base8 {
 namespace base11 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base11() {
-		constexpr Alphabet alphabet("0123456789a", "", IGNORE_CASE);
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("0123456789a", "", IGNORE_CASE);
 		return encoder;
 	}
 }
@@ -348,14 +337,12 @@ namespace base11 {
 namespace base16 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base16() {
-		constexpr Alphabet alphabet("0123456789abcdef", "", IGNORE_CASE);
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("0123456789abcdef", "", IGNORE_CASE);
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& rfc4648() {
-		constexpr Alphabet alphabet("0123456789ABCDEF", "= \n\r\t", IGNORE_CASE);
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("0123456789ABCDEF", "= \n\r\t", IGNORE_CASE);
 		return encoder;
 	}
 }
@@ -364,28 +351,23 @@ namespace base16 {
 namespace base32 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base32() {
-		constexpr Alphabet alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", "", IGNORE_CASE);
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", "", IGNORE_CASE);
 		return encoder;
 	}
 	const BaseX& hex() {
-		constexpr Alphabet alphabet("0123456789ABCDEFGHIJKLMNOPQRSTUV", "", IGNORE_CASE);
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUV", "", IGNORE_CASE);
 		return encoder;
 	}
 	const BaseX& rfc4648() {
-		constexpr Alphabet alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", "= \n\r\t", IGNORE_CASE | BLOCK_PADDING);
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", "= \n\r\t", IGNORE_CASE | BLOCK_PADDING);
 		return encoder;
 	}
 	const BaseX& rfc4648hex() {
-		constexpr Alphabet alphabet("0123456789ABCDEFGHIJKLMNOPQRSTUV", "= \n\r\t", IGNORE_CASE | BLOCK_PADDING);
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUV", "= \n\r\t", IGNORE_CASE | BLOCK_PADDING);
 		return encoder;
 	}
 	const BaseX& crockford() {
-		constexpr Alphabet alphabet("0123456789ABCDEFGHJKMNPQRSTVWXYZ", "", IGNORE_CASE);
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("0123456789ABCDEFGHJKMNPQRSTVWXYZ", "", IGNORE_CASE);
 		return encoder;
 	}
 }
@@ -394,8 +376,7 @@ namespace base32 {
 namespace base36 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base36() {
-		constexpr Alphabet alphabet("0123456789abcdefghijklmnopqrstuvwxyz", "", IGNORE_CASE);
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("0123456789abcdefghijklmnopqrstuvwxyz", "", IGNORE_CASE);
 		return encoder;
 	}
 }
@@ -404,26 +385,22 @@ namespace base36 {
 namespace base58 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& gmp() {
-		constexpr Alphabet alphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv", "");
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& bitcoin() {
-		constexpr Alphabet alphabet("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "");
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& ripple() {
-		constexpr Alphabet alphabet("rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz", "");
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& flickr() {
-		constexpr Alphabet alphabet("123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ", "");
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
@@ -436,14 +413,12 @@ namespace base58 {
 namespace base62 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& inverted() {
-		constexpr Alphabet alphabet("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", "");
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base62() {
-		constexpr Alphabet alphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "");
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "");
 		return encoder;
 	}
 }
@@ -452,26 +427,22 @@ namespace base62 {
 namespace base64 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base64() {
-		constexpr Alphabet alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", "");
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& url() {
-		constexpr Alphabet alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "");
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& rfc4648() {
-		constexpr Alphabet alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", "= \n\r\t", BLOCK_PADDING);
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", "= \n\r\t", BLOCK_PADDING);
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& rfc4648url() {
-		constexpr Alphabet alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "= \n\r\t", BLOCK_PADDING);
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "= \n\r\t", BLOCK_PADDING);
 		return encoder;
 	}
 }
@@ -480,8 +451,7 @@ namespace base64 {
 namespace base66 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base66() {
-		constexpr Alphabet alphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~", "");
-		static BaseX encoder(alphabet);
+		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~", "");
 		return encoder;
 	}
 }
