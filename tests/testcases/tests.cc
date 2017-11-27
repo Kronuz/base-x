@@ -33,185 +33,185 @@ static constexpr BaseX test_base58(0, "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefgh
 
 
 TEST(UUID, Encode) {
-	EXPECT_EQ(base62::base62().encode("\330\105\140\310\23\117\21\346\241\342\64\66\73\322\155\256"), "6a630O1jrtMjCrQDyG3D3O");
-	EXPECT_EQ(base58::bitcoin().encode("\330\105\140\310\23\117\21\346\241\342\64\66\73\322\155\256"), "ThxCy1Ek2q6UhWQhj9CK1o");
-	EXPECT_EQ(base58::base58().encode("\330\105\140\310\23\117\21\346\241\342\64\66\73\322\155\256"), "QetBu0Dh1m5ReTNeg8BI0k");
+	EXPECT_EQ(Base62::base62().encode("\330\105\140\310\23\117\21\346\241\342\64\66\73\322\155\256"), "6a630O1jrtMjCrQDyG3D3O");
+	EXPECT_EQ(Base58::bitcoin().encode("\330\105\140\310\23\117\21\346\241\342\64\66\73\322\155\256"), "ThxCy1Ek2q6UhWQhj9CK1o");
+	EXPECT_EQ(Base58::base58().encode("\330\105\140\310\23\117\21\346\241\342\64\66\73\322\155\256"), "QetBu0Dh1m5ReTNeg8BI0k");
 }
 
 TEST(BaseX, checksums) {
-	EXPECT_EQ(base64::base64().encode("Hello world!"), "SGVsbG8gd29ybGQh");
-	EXPECT_EQ(base64::base64chk().encode("Hello world!"), "SGVsbG8gd29ybGQhG");
+	EXPECT_EQ(Base64::base64().encode("Hello world!"), "SGVsbG8gd29ybGQh");
+	EXPECT_EQ(Base64::base64chk().encode("Hello world!"), "SGVsbG8gd29ybGQhG");
 
-	EXPECT_EQ(base64::base64().decode("SGVsbG8gd29ybGQh"), "Hello world!");
-	EXPECT_EQ(base64::base64chk().decode("SGVsbG8gd29ybGQhG"), "Hello world!");
+	EXPECT_EQ(Base64::base64().decode("SGVsbG8gd29ybGQh"), "Hello world!");
+	EXPECT_EQ(Base64::base64chk().decode("SGVsbG8gd29ybGQhG"), "Hello world!");
 
-	EXPECT_EQ(base62::base62().encode("Hello world!"), "T8dgcjRGuYUueWht");
-	EXPECT_EQ(base62::base62chk().encode("Hello world!"), "T8dgcjRGuYUueWhtE");
+	EXPECT_EQ(Base62::base62().encode("Hello world!"), "T8dgcjRGuYUueWht");
+	EXPECT_EQ(Base62::base62chk().encode("Hello world!"), "T8dgcjRGuYUueWhtE");
 
-	EXPECT_EQ(base62::base62().decode("T8dgcjRGuYUueWht"), "Hello world!");
-	EXPECT_EQ(base62::base62chk().decode("T8dgcjRGuYUueWhtE"), "Hello world!");
+	EXPECT_EQ(Base62::base62().decode("T8dgcjRGuYUueWht"), "Hello world!");
+	EXPECT_EQ(Base62::base62chk().decode("T8dgcjRGuYUueWhtE"), "Hello world!");
 
-	EXPECT_EQ(base62::base62chk().is_valid("T8dgcjRGuYUueWhtE"), true);
-	EXPECT_EQ(base62::base62chk().is_valid("Some random text!"), false);
+	EXPECT_EQ(Base62::base62chk().is_valid("T8dgcjRGuYUueWhtE"), true);
+	EXPECT_EQ(Base62::base62chk().is_valid("Some random text!"), false);
 }
 
 TEST(base16, Encoder) {
-	EXPECT_EQ(base16::base16().encode("A"), "41");
-	EXPECT_EQ(base16::base16().encode("AB"), "4142");
-	EXPECT_EQ(base16::base16().encode("ABC"), "414243");
-	EXPECT_EQ(base16::base16().encode("ABCD"), "41424344");
-	EXPECT_EQ(base16::base16().encode("ABCDE"), "4142434445");
-	EXPECT_EQ(base16::base16().encode("ABCDEF"), "414243444546");
+	EXPECT_EQ(Base16::base16().encode("A"), "41");
+	EXPECT_EQ(Base16::base16().encode("AB"), "4142");
+	EXPECT_EQ(Base16::base16().encode("ABC"), "414243");
+	EXPECT_EQ(Base16::base16().encode("ABCD"), "41424344");
+	EXPECT_EQ(Base16::base16().encode("ABCDE"), "4142434445");
+	EXPECT_EQ(Base16::base16().encode("ABCDEF"), "414243444546");
 
-	EXPECT_EQ(base16::rfc4648().encode("A"), "41");
-	EXPECT_EQ(base16::rfc4648().encode("AB"), "4142");
-	EXPECT_EQ(base16::rfc4648().encode("ABC"), "414243");
-	EXPECT_EQ(base16::rfc4648().encode("ABCD"), "41424344");
-	EXPECT_EQ(base16::rfc4648().encode("ABCDE"), "4142434445");
-	EXPECT_EQ(base16::rfc4648().encode("ABCDEF"), "414243444546");
+	EXPECT_EQ(Base16::rfc4648().encode("A"), "41");
+	EXPECT_EQ(Base16::rfc4648().encode("AB"), "4142");
+	EXPECT_EQ(Base16::rfc4648().encode("ABC"), "414243");
+	EXPECT_EQ(Base16::rfc4648().encode("ABCD"), "41424344");
+	EXPECT_EQ(Base16::rfc4648().encode("ABCDE"), "4142434445");
+	EXPECT_EQ(Base16::rfc4648().encode("ABCDEF"), "414243444546");
 }
 
 TEST(base16, Decoder) {
-	EXPECT_EQ(base16::base16().decode("41"), "A");
-	EXPECT_EQ(base16::base16().decode("4142"), "AB");
-	EXPECT_EQ(base16::base16().decode("414243"), "ABC");
-	EXPECT_EQ(base16::base16().decode("41424344"), "ABCD");
-	EXPECT_EQ(base16::base16().decode("4142434445"), "ABCDE");
-	EXPECT_EQ(base16::base16().decode("414243444546"), "ABCDEF");
+	EXPECT_EQ(Base16::base16().decode("41"), "A");
+	EXPECT_EQ(Base16::base16().decode("4142"), "AB");
+	EXPECT_EQ(Base16::base16().decode("414243"), "ABC");
+	EXPECT_EQ(Base16::base16().decode("41424344"), "ABCD");
+	EXPECT_EQ(Base16::base16().decode("4142434445"), "ABCDE");
+	EXPECT_EQ(Base16::base16().decode("414243444546"), "ABCDEF");
 
-	EXPECT_EQ(base16::rfc4648().decode("41"), "A");
-	EXPECT_EQ(base16::rfc4648().decode("4142"), "AB");
-	EXPECT_EQ(base16::rfc4648().decode("414243"), "ABC");
-	EXPECT_EQ(base16::rfc4648().decode("41424344"), "ABCD");
-	EXPECT_EQ(base16::rfc4648().decode("4142434445"), "ABCDE");
-	EXPECT_EQ(base16::rfc4648().decode("414243444546"), "ABCDEF");
+	EXPECT_EQ(Base16::rfc4648().decode("41"), "A");
+	EXPECT_EQ(Base16::rfc4648().decode("4142"), "AB");
+	EXPECT_EQ(Base16::rfc4648().decode("414243"), "ABC");
+	EXPECT_EQ(Base16::rfc4648().decode("41424344"), "ABCD");
+	EXPECT_EQ(Base16::rfc4648().decode("4142434445"), "ABCDE");
+	EXPECT_EQ(Base16::rfc4648().decode("414243444546"), "ABCDEF");
 }
 
 TEST(base32, Encoder) {
 	// Note base64() encoding is NOT the same as the standard (rfc4648)
-	EXPECT_EQ(base32::base32().encode("A"), "21");
-	EXPECT_EQ(base32::base32().encode("AB"), "ga2");
-	EXPECT_EQ(base32::base32().encode("ABC"), "42gi3");
-	EXPECT_EQ(base32::base32().encode("ABCD"), "10k4gq4");
-	EXPECT_EQ(base32::base32().encode("ABCDE"), "85146h25");
-	EXPECT_EQ(base32::base32().encode("ABCDEF"), "21891k8ha6");
-	EXPECT_EQ(base32::base32().encode("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "21891k8ha68t44iiib9h6ksjqga5956l2lapblgmaq");
+	EXPECT_EQ(Base32::base32().encode("A"), "21");
+	EXPECT_EQ(Base32::base32().encode("AB"), "ga2");
+	EXPECT_EQ(Base32::base32().encode("ABC"), "42gi3");
+	EXPECT_EQ(Base32::base32().encode("ABCD"), "10k4gq4");
+	EXPECT_EQ(Base32::base32().encode("ABCDE"), "85146h25");
+	EXPECT_EQ(Base32::base32().encode("ABCDEF"), "21891k8ha6");
+	EXPECT_EQ(Base32::base32().encode("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "21891k8ha68t44iiib9h6ksjqga5956l2lapblgmaq");
 
-	EXPECT_EQ(base32::rfc4648().encode("A"), "IE======");
-	EXPECT_EQ(base32::rfc4648().encode("AB"), "IFBA====");
-	EXPECT_EQ(base32::rfc4648().encode("ABC"), "IFBEG===");
-	EXPECT_EQ(base32::rfc4648().encode("ABCD"), "IFBEGRA=");
-	EXPECT_EQ(base32::rfc4648().encode("ABCDE"), "IFBEGRCF");
-	EXPECT_EQ(base32::rfc4648().encode("ABCDEF"), "IFBEGRCFIY======");
-	EXPECT_EQ(base32::rfc4648().encode("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "IFBEGRCFIZDUQSKKJNGE2TSPKBIVEU2UKVLFOWCZLI======");
+	EXPECT_EQ(Base32::rfc4648().encode("A"), "IE======");
+	EXPECT_EQ(Base32::rfc4648().encode("AB"), "IFBA====");
+	EXPECT_EQ(Base32::rfc4648().encode("ABC"), "IFBEG===");
+	EXPECT_EQ(Base32::rfc4648().encode("ABCD"), "IFBEGRA=");
+	EXPECT_EQ(Base32::rfc4648().encode("ABCDE"), "IFBEGRCF");
+	EXPECT_EQ(Base32::rfc4648().encode("ABCDEF"), "IFBEGRCFIY======");
+	EXPECT_EQ(Base32::rfc4648().encode("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "IFBEGRCFIZDUQSKKJNGE2TSPKBIVEU2UKVLFOWCZLI======");
 
-	EXPECT_EQ(base32::crockford().encode(519571), "FVCK");
-	EXPECT_EQ(base32::crockfordchk().encode(1234), "16JD");
-	EXPECT_EQ(base32::crockfordchk().encode("Hello World"), "28CNP6RVS0AXQQ4V348");
+	EXPECT_EQ(Base32::crockford().encode(519571), "FVCK");
+	EXPECT_EQ(Base32::crockfordchk().encode(1234), "16JD");
+	EXPECT_EQ(Base32::crockfordchk().encode("Hello World"), "28CNP6RVS0AXQQ4V348");
 }
 
 TEST(base32, Decoder) {
 	// Note base64() encoding is NOT the same as the standard (rfc4648)
-	EXPECT_EQ(base32::base32().decode("21"), "A");
-	EXPECT_EQ(base32::base32().decode("ga2"), "AB");
-	EXPECT_EQ(base32::base32().decode("42gi3"), "ABC");
-	EXPECT_EQ(base32::base32().decode("10k4gq4"), "ABCD");
-	EXPECT_EQ(base32::base32().decode("85146h25"), "ABCDE");
-	EXPECT_EQ(base32::base32().decode("21891k8ha6"), "ABCDEF");
-	EXPECT_EQ(base32::base32().decode("21891k8ha68t44iiib9h6ksjqga5956l2lapblgmaq"), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+	EXPECT_EQ(Base32::base32().decode("21"), "A");
+	EXPECT_EQ(Base32::base32().decode("ga2"), "AB");
+	EXPECT_EQ(Base32::base32().decode("42gi3"), "ABC");
+	EXPECT_EQ(Base32::base32().decode("10k4gq4"), "ABCD");
+	EXPECT_EQ(Base32::base32().decode("85146h25"), "ABCDE");
+	EXPECT_EQ(Base32::base32().decode("21891k8ha6"), "ABCDEF");
+	EXPECT_EQ(Base32::base32().decode("21891k8ha68t44iiib9h6ksjqga5956l2lapblgmaq"), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
-	EXPECT_EQ(base32::rfc4648().decode("IE======"), "A");
-	EXPECT_EQ(base32::rfc4648().decode("IFBA===="), "AB");
-	EXPECT_EQ(base32::rfc4648().decode("IFBEG==="), "ABC");
-	EXPECT_EQ(base32::rfc4648().decode("IFBEGRA="), "ABCD");
-	EXPECT_EQ(base32::rfc4648().decode("IFBEGRCF"), "ABCDE");
-	EXPECT_EQ(base32::rfc4648().decode("IFBEGRCFIY======"), "ABCDEF");
-	EXPECT_EQ(base32::rfc4648().decode("IFBEGRCFIZDUQSKKJNGE2TSPKBIVEU2UKVLFOWCZLI======"), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+	EXPECT_EQ(Base32::rfc4648().decode("IE======"), "A");
+	EXPECT_EQ(Base32::rfc4648().decode("IFBA===="), "AB");
+	EXPECT_EQ(Base32::rfc4648().decode("IFBEG==="), "ABC");
+	EXPECT_EQ(Base32::rfc4648().decode("IFBEGRA="), "ABCD");
+	EXPECT_EQ(Base32::rfc4648().decode("IFBEGRCF"), "ABCDE");
+	EXPECT_EQ(Base32::rfc4648().decode("IFBEGRCFIY======"), "ABCDEF");
+	EXPECT_EQ(Base32::rfc4648().decode("IFBEGRCFIZDUQSKKJNGE2TSPKBIVEU2UKVLFOWCZLI======"), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
-	EXPECT_EQ(base32::crockford().decode<uinteger_t>("FVCK"), 519571);
-	EXPECT_EQ(base32::crockfordchk().is_valid("16JD"), true);
-	EXPECT_EQ(base32::crockfordchk().decode<uinteger_t>("16JD"), 1234);
+	EXPECT_EQ(Base32::crockford().decode<uinteger_t>("FVCK"), 519571);
+	EXPECT_EQ(Base32::crockfordchk().is_valid("16JD"), true);
+	EXPECT_EQ(Base32::crockfordchk().decode<uinteger_t>("16JD"), 1234);
 
-	EXPECT_EQ(base32::crockfordchk().decode("2-8cn-p6r-vso-axq-q4v-348"), "Hello World");
+	EXPECT_EQ(Base32::crockfordchk().decode("2-8cn-p6r-vso-axq-q4v-348"), "Hello World");
 }
 
 TEST(base58, Encoder) {
-	EXPECT_EQ(base58::base58().decode<uinteger_t>("1TFvCj"), 987654321);
-	EXPECT_EQ(base58::base58().encode(987654321), "1TFvCj");
-	EXPECT_EQ(base58::base58().encode("Hello world!"), "1LDlk6QWOejX6rPrJ");
-	EXPECT_EQ(base58::bitcoin().encode("Hello world!"), "2NEpo7TZRhna7vSvL");
+	EXPECT_EQ(Base58::base58().decode<uinteger_t>("1TFvCj"), 987654321);
+	EXPECT_EQ(Base58::base58().encode(987654321), "1TFvCj");
+	EXPECT_EQ(Base58::base58().encode("Hello world!"), "1LDlk6QWOejX6rPrJ");
+	EXPECT_EQ(Base58::bitcoin().encode("Hello world!"), "2NEpo7TZRhna7vSvL");
 }
 
 TEST(base62, Encoder) {
-	EXPECT_EQ(base62::base62().decode<uinteger_t>("14q60P"), 987654321);
-	EXPECT_EQ(base62::base62().encode(987654321), "14q60P");
-	EXPECT_EQ(base62::base62().encode("Hello world!"), "T8dgcjRGuYUueWht");
-	EXPECT_EQ(base62::inverted().encode("Hello world!"), "t8DGCJrgUyuUEwHT");
+	EXPECT_EQ(Base62::base62().decode<uinteger_t>("14q60P"), 987654321);
+	EXPECT_EQ(Base62::base62().encode(987654321), "14q60P");
+	EXPECT_EQ(Base62::base62().encode("Hello world!"), "T8dgcjRGuYUueWht");
+	EXPECT_EQ(Base62::inverted().encode("Hello world!"), "t8DGCJrgUyuUEwHT");
 }
 
 TEST(base64, Encoder) {
 	// Note Base64 encoding is NOT the same as the standard (rfc4648)
-	EXPECT_EQ(base64::base64().encode("A"), "BB");
-	EXPECT_EQ(base64::base64().encode("AB"), "EFC");
-	EXPECT_EQ(base64::base64().encode("ABC"), "QUJD");
-	EXPECT_EQ(base64::base64().encode("ABCD"), "BBQkNE");
-	EXPECT_EQ(base64::base64().encode("ABCDE"), "EFCQ0RF");
-	EXPECT_EQ(base64::base64().encode("ABCDEF"), "QUJDREVG");
-	EXPECT_EQ(base64::base64().encode("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "EFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFla");
+	EXPECT_EQ(Base64::base64().encode("A"), "BB");
+	EXPECT_EQ(Base64::base64().encode("AB"), "EFC");
+	EXPECT_EQ(Base64::base64().encode("ABC"), "QUJD");
+	EXPECT_EQ(Base64::base64().encode("ABCD"), "BBQkNE");
+	EXPECT_EQ(Base64::base64().encode("ABCDE"), "EFCQ0RF");
+	EXPECT_EQ(Base64::base64().encode("ABCDEF"), "QUJDREVG");
+	EXPECT_EQ(Base64::base64().encode("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "EFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFla");
 
-	EXPECT_EQ(base64::rfc4648().encode("A"), "QQ==");
-	EXPECT_EQ(base64::rfc4648().encode("AB"), "QUI=");
-	EXPECT_EQ(base64::rfc4648().encode("ABC"), "QUJD");
-	EXPECT_EQ(base64::rfc4648().encode("ABCD"), "QUJDRA==");
-	EXPECT_EQ(base64::rfc4648().encode("ABCDE"), "QUJDREU=");
-	EXPECT_EQ(base64::rfc4648().encode("ABCDEF"), "QUJDREVG");
-	EXPECT_EQ(base64::rfc4648().encode("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=");
+	EXPECT_EQ(Base64::rfc4648().encode("A"), "QQ==");
+	EXPECT_EQ(Base64::rfc4648().encode("AB"), "QUI=");
+	EXPECT_EQ(Base64::rfc4648().encode("ABC"), "QUJD");
+	EXPECT_EQ(Base64::rfc4648().encode("ABCD"), "QUJDRA==");
+	EXPECT_EQ(Base64::rfc4648().encode("ABCDE"), "QUJDREU=");
+	EXPECT_EQ(Base64::rfc4648().encode("ABCDEF"), "QUJDREVG");
+	EXPECT_EQ(Base64::rfc4648().encode("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=");
 }
 
 TEST(base64, Decoder) {
 	// Note Base64 encoding is NOT the same as the standard (rfc4648)
-	EXPECT_EQ(base64::base64().decode("BB"), "A");
-	EXPECT_EQ(base64::base64().decode("EFC"), "AB");
-	EXPECT_EQ(base64::base64().decode("QUJD"), "ABC");
-	EXPECT_EQ(base64::base64().decode("BBQkNE"), "ABCD");
-	EXPECT_EQ(base64::base64().decode("EFCQ0RF"), "ABCDE");
-	EXPECT_EQ(base64::base64().decode("QUJDREVG"), "ABCDEF");
-	EXPECT_EQ(base64::base64().decode("EFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFla"), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+	EXPECT_EQ(Base64::base64().decode("BB"), "A");
+	EXPECT_EQ(Base64::base64().decode("EFC"), "AB");
+	EXPECT_EQ(Base64::base64().decode("QUJD"), "ABC");
+	EXPECT_EQ(Base64::base64().decode("BBQkNE"), "ABCD");
+	EXPECT_EQ(Base64::base64().decode("EFCQ0RF"), "ABCDE");
+	EXPECT_EQ(Base64::base64().decode("QUJDREVG"), "ABCDEF");
+	EXPECT_EQ(Base64::base64().decode("EFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFla"), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
-	EXPECT_EQ(base64::rfc4648().decode("QQ=="), "A");
-	EXPECT_EQ(base64::rfc4648().decode("QUI="), "AB");
-	EXPECT_EQ(base64::rfc4648().decode("QUJD"), "ABC");
-	EXPECT_EQ(base64::rfc4648().decode("QUJDRA=="), "ABCD");
-	EXPECT_EQ(base64::rfc4648().decode("QUJDREU="), "ABCDE");
-	EXPECT_EQ(base64::rfc4648().decode("QUJDREVG"), "ABCDEF");
-	EXPECT_EQ(base64::rfc4648().decode("QUJDREVG\nR0hJSktM\nTU5PUFFS\nU1RVVldY\nWVo="), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+	EXPECT_EQ(Base64::rfc4648().decode("QQ=="), "A");
+	EXPECT_EQ(Base64::rfc4648().decode("QUI="), "AB");
+	EXPECT_EQ(Base64::rfc4648().decode("QUJD"), "ABC");
+	EXPECT_EQ(Base64::rfc4648().decode("QUJDRA=="), "ABCD");
+	EXPECT_EQ(Base64::rfc4648().decode("QUJDREU="), "ABCDE");
+	EXPECT_EQ(Base64::rfc4648().decode("QUJDREVG"), "ABCDEF");
+	EXPECT_EQ(Base64::rfc4648().decode("QUJDREVG\nR0hJSktM\nTU5PUFFS\nU1RVVldY\nWVo="), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 }
 
 TEST(base58, ShouldEncodeAndDecodeIntegers) {
 	auto data = 987654321;
 
-	auto gmpEncoded = base58::base58().encode(data);
-	auto bitcoinEncoded = base58::bitcoin().encode(data);
-	auto rippleEncoded = base58::ripple().encode(data);
-	auto flickrEncoded = base58::flickr().encode(data);
+	auto gmpEncoded = Base58::base58().encode(data);
+	auto bitcoinEncoded = Base58::bitcoin().encode(data);
+	auto rippleEncoded = Base58::ripple().encode(data);
+	auto flickrEncoded = Base58::flickr().encode(data);
 
 	EXPECT_EQ(gmpEncoded, "1TFvCj");
 	EXPECT_EQ(bitcoinEncoded, "2WGzDn");
 	EXPECT_EQ(rippleEncoded, "pWGzD8");
 	EXPECT_EQ(flickrEncoded, "2vgZdM");
 
-	auto gmpDecoded = base58::base58().decode<uinteger_t>(gmpEncoded);
-	auto bitcoinDecoded = base58::bitcoin().decode<uinteger_t>(bitcoinEncoded);
-	auto rippleDecoded = base58::ripple().decode<uinteger_t>(rippleEncoded);
-	auto flickrDecoded = base58::flickr().decode<uinteger_t>(flickrEncoded);
+	auto gmpDecoded = Base58::base58().decode<uinteger_t>(gmpEncoded);
+	auto bitcoinDecoded = Base58::bitcoin().decode<uinteger_t>(bitcoinEncoded);
+	auto rippleDecoded = Base58::ripple().decode<uinteger_t>(rippleEncoded);
+	auto flickrDecoded = Base58::flickr().decode<uinteger_t>(flickrEncoded);
 
 	EXPECT_EQ(gmpDecoded, data);
 	EXPECT_EQ(bitcoinDecoded, data);
 	EXPECT_EQ(rippleDecoded, data);
 	EXPECT_EQ(flickrDecoded, data);
 
-	auto encoded = base58::base58().encode(data);
-	auto decoded = base58::base58().decode<uinteger_t>(encoded);
+	auto encoded = Base58::base58().encode(data);
+	auto decoded = Base58::base58().decode<uinteger_t>(encoded);
 
 	EXPECT_EQ(decoded, data);
 }
@@ -219,20 +219,20 @@ TEST(base58, ShouldEncodeAndDecodeIntegers) {
 TEST(base58, LongText) {
 	auto data = "Lorem ipsum dolor consectetur.";
 
-	auto gmpEncoded = base58::base58().encode(data);
-	auto bitcoinEncoded = base58::bitcoin().encode(data);
-	auto rippleEncoded = base58::ripple().encode(data);
-	auto flickrEncoded = base58::flickr().encode(data);
+	auto gmpEncoded = Base58::base58().encode(data);
+	auto bitcoinEncoded = Base58::bitcoin().encode(data);
+	auto rippleEncoded = Base58::ripple().encode(data);
+	auto flickrEncoded = Base58::flickr().encode(data);
 
 	EXPECT_EQ(gmpEncoded, "FIHZQEpJ739QdqChX1PkgTBqP1FaDgJWQiGvY92YA");
 	EXPECT_EQ(bitcoinEncoded, "GKJcTFtL84ATguDka2SojWCuS2GdEjLZTmHzbA3bB");
 	EXPECT_EQ(rippleEncoded, "GKJcTEtL3hwTguDk2pSojWUuSpGdNjLZTmHzbwsbB");
 	EXPECT_EQ(flickrEncoded, "gjiBsfTk84asFUdKz2rNJvcUr2gCeJkysLhZAa3Ab");
 
-	auto gmpDecoded = base58::base58().decode(gmpEncoded);
-	auto bitcoinDecoded = base58::bitcoin().decode(bitcoinEncoded);
-	auto rippleDecoded = base58::ripple().decode(rippleEncoded);
-	auto flickrDecoded = base58::flickr().decode(flickrEncoded);
+	auto gmpDecoded = Base58::base58().decode(gmpEncoded);
+	auto bitcoinDecoded = Base58::bitcoin().decode(bitcoinEncoded);
+	auto rippleDecoded = Base58::ripple().decode(rippleEncoded);
+	auto flickrDecoded = Base58::flickr().decode(flickrEncoded);
 
 	EXPECT_EQ(gmpDecoded, data);
 	EXPECT_EQ(bitcoinDecoded, data);
