@@ -69,6 +69,9 @@ TEST(base16, Encoder) {
 	EXPECT_EQ(Base16::rfc4648().encode("ABCD"), "41424344");
 	EXPECT_EQ(Base16::rfc4648().encode("ABCDE"), "4142434445");
 	EXPECT_EQ(Base16::rfc4648().encode("ABCDEF"), "414243444546");
+
+	EXPECT_EQ(Base16::base16_le().encode("ABCDEF"), "645444342414");
+	EXPECT_EQ(Base16::base16chk_le().encode("ABCDEF"), "6454443424147");
 }
 
 TEST(base16, Decoder) {
@@ -85,6 +88,9 @@ TEST(base16, Decoder) {
 	EXPECT_EQ(Base16::rfc4648().decode("41424344"), "ABCD");
 	EXPECT_EQ(Base16::rfc4648().decode("4142434445"), "ABCDE");
 	EXPECT_EQ(Base16::rfc4648().decode("414243444546"), "ABCDEF");
+
+	EXPECT_EQ(Base16::base16_le().decode("645444342414"), "ABCDEF");
+	EXPECT_EQ(Base16::base16chk_le().decode("6454443424147"), "ABCDEF");
 }
 
 TEST(base32, Encoder) {
