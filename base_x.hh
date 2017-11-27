@@ -30,68 +30,100 @@ THE SOFTWARE.
 
 #include "uinteger_t.hh"
 
-#define IGNORE_CASE    1
-#define BLOCK_PADDING  2
-
 
 class BaseX {
 	char _chr[256];
-	unsigned char _ord[256];
+	int _ord[256];
 
+	const int size;
 	const int base;
 	const unsigned base_size;
 	const unsigned base_bits;
 	const unsigned block_size;
+	const uinteger_t::digit base_mask;
 	const unsigned padding_size;
 	const char padding;
-	const uinteger_t::digit base_mask;
+	const int flags;
 
-	const char& chr(int ord) const {
+	const char& chr(unsigned char ord) const {
 		return _chr[ord];
 	}
 
-	const unsigned char& ord(int chr) const {
+	const int& ord(unsigned char chr) const {
 		return _ord[chr];
 	}
 
 public:
-	template <typename A, std::size_t alphabet_size1, typename I, std::size_t ignored_size1, typename P, std::size_t padding_size1>
-	constexpr BaseX(A (&alphabet)[alphabet_size1], I (&ignored)[ignored_size1], P (&padding_string)[padding_size1], int _flags = 0) :
+	static constexpr int ignore_case = 1;
+	static constexpr int with_checksum = 2;
+	static constexpr int with_check = 4;
+	static constexpr int block_padding = 8;
+
+	template <std::size_t alphabet_size1, std::size_t extended_size1, std::size_t padding_size1, std::size_t translate_size1>
+	constexpr BaseX(int flags, const char (&alphabet)[alphabet_size1], const char (&extended)[extended_size1], const char (&padding_string)[padding_size1], const char (&translate)[translate_size1]) :
 		_chr(),
 		_ord(),
+		size(alphabet_size1 - 1 + extended_size1 - 1),
 		base(alphabet_size1 - 1),
 		base_size(uinteger_t::base_size(base)),
 		base_bits(uinteger_t::base_bits(base)),
-		block_size((_flags & BLOCK_PADDING) ? base_bits : 0),
+		block_size((flags & BaseX::block_padding) ? base_bits : 0),
+		base_mask(base - 1),
 		padding_size(padding_size1 - 1),
 		padding(padding_size ? padding_string[0] : '\0'),
-		base_mask(base - 1)
+		flags(flags)
 	{
-		for (auto i = 256; i; --i) {
-			_chr[i - 1] = 0;
-			_ord[i - 1] = 0xff;
+		for (int c = 0; c < 256; ++c) {
+			_chr[c] = 0;
+			_ord[c] = base;
 		}
-		for (auto i = ignored_size1 - 1; i; --i) {
-			auto ch = ignored[i - 1];
-			_ord[(int)ch] = 0;
-		}
-		for (auto i = base; i; --i) {
-			auto ch = alphabet[i - 1];
-			_chr[i - 1] = ch;
-			_ord[(int)ch] = i - 1;
-			if (_flags & IGNORE_CASE) {
+		for (int cp = 0; cp < base; ++cp) {
+			auto ch = alphabet[cp];
+			_chr[cp] = ch;
+			_ord[(unsigned char)ch] = cp;
+			if (flags & BaseX::ignore_case) {
 				if (ch >= 'A' && ch <='Z') {
-					_ord[(int)ch - 'A' + 'a'] = i - 1;
+					_ord[(unsigned char)ch - 'A' + 'a'] = cp;
 				} else if (ch >= 'a' && ch <='z') {
-					_ord[(int)ch - 'a' + 'A'] = i - 1;
+					_ord[(unsigned char)ch - 'a' + 'A'] = cp;
 				}
+			}
+		}
+		for (std::size_t i = 0; i < extended_size1 - 1; ++i) {
+			auto ch = extended[i];
+			auto cp = base + i;
+			_chr[cp] = ch;
+			_ord[(unsigned char)ch] = cp;
+			if (flags & BaseX::ignore_case) {
+				if (ch >= 'A' && ch <='Z') {
+					_ord[(unsigned char)ch - 'A' + 'a'] = cp;
+				} else if (ch >= 'a' && ch <='z') {
+					_ord[(unsigned char)ch - 'a' + 'A'] = cp;
+				}
+			}
+		}
+		int cp = -1;
+		for (std::size_t i = 0; i < translate_size1 - 1; ++i) {
+			auto ch = translate[i];
+			auto ncp = _ord[(unsigned char)ch];
+			if (ncp >= base) {
+				_ord[(unsigned char)ch] = cp;
+				if (flags & BaseX::ignore_case) {
+					if (ch >= 'A' && ch <='Z') {
+						_ord[(unsigned char)ch - 'A' + 'a'] = cp;
+					} else if (ch >= 'a' && ch <='z') {
+						_ord[(unsigned char)ch - 'a' + 'A'] = cp;
+					}
+				}
+			} else {
+				cp = ncp;
 			}
 		}
 	}
 
 	// Get string representation of value
 	template <typename Result = std::string>
-	void encode(Result& result, const uinteger_t& num, bool checksum = false) const {
+	void encode(Result& result, const uinteger_t& num) const {
 		auto num_sz = num.size();
 		if (num_sz) {
 			int sum = 0;
@@ -113,7 +145,7 @@ public:
 					v |= (static_cast<uinteger_t::digit>(*ptr++) << uinteger_t::half_digit_bits);
 					do {
 						auto d = static_cast<int>((v >> shift) & base_mask);
-						sum ^= d;
+						sum += d;
 						result.push_back(chr(d));
 						shift += base_bits;
 					} while (shift <= uinteger_t::half_digit_bits);
@@ -122,7 +154,7 @@ public:
 				v >>= (shift + uinteger_t::half_digit_bits);
 				while (v) {
 					auto d = static_cast<int>(v & base_mask);
-					sum ^= d;
+					sum += d;
 					result.push_back(chr(d));
 					v >>= base_bits;
 				}
@@ -134,7 +166,7 @@ public:
 				do {
 					auto r = quotient.divmod(uint_base);
 					auto d = static_cast<int>(r.second);
-					sum ^= d;
+					sum += d;
 					result.push_back(chr(d));
 					quotient = std::move(r.first);
 				} while (quotient);
@@ -145,10 +177,15 @@ public:
 				p.resize((padding_size - (result.size() % padding_size)) % padding_size, padding);
 				result.append(p);
 			}
-			if (checksum) {
+			if (flags & BaseX::with_check) {
+				auto chk = static_cast<int>(num % size);
+				result.push_back(chr(chk));
+				sum += chk;
+			}
+			if (flags & BaseX::with_checksum) {
 				auto sz = result.size();
-				sum ^= (sz / base) % base;
-				sum ^= (sz % base);
+				sum += (sz + sz / size) % size;
+				sum = (size - sum % size) % size;
 				result.push_back(chr(sum));
 			}
 		} else {
@@ -157,55 +194,58 @@ public:
 	}
 
 	template <typename Result = std::string>
-	Result encode(uinteger_t num, bool checksum = false) const {
+	Result encode(uinteger_t num) const {
 		Result result;
-		encode(result, num, checksum);
+		encode(result, num);
 		return result;
 	}
 
 	template <typename Result = std::string>
-	void encode(Result& result, const char* bytes, size_t size, bool checksum = false) const {
-		encode(result, uinteger_t(bytes, size, 256), checksum);
+	void encode(Result& result, const char* bytes, size_t size) const {
+		encode(result, uinteger_t(bytes, size, 256));
 	}
 
 	template <typename Result = std::string>
-	Result encode(const char* bytes, size_t size, bool checksum = false) const {
+	Result encode(const char* bytes, size_t size) const {
 		Result result;
-		encode(result, uinteger_t(bytes, size, 256), checksum);
+		encode(result, uinteger_t(bytes, size, 256));
 		return result;
 	}
 
 	template <typename Result = std::string, typename T, std::size_t N>
-	void encode(Result& result, T (&s)[N], bool checksum = false) const {
-		encode(result, s, N - 1, checksum);
+	void encode(Result& result, T (&s)[N]) const {
+		encode(result, s, N - 1);
 	}
 
 	template <typename Result = std::string, typename T, std::size_t N>
-	Result encode(T (&s)[N], bool checksum = false) const {
+	Result encode(T (&s)[N]) const {
 		Result result;
-		encode(result, s, N - 1, checksum);
+		encode(result, s, N - 1);
 		return result;
 	}
 
 	template <typename Result = std::string>
-	void encode(Result& result, const std::string& binary, bool checksum = false) const {
-		return encode(result, binary.data(), binary.size(), checksum);
+	void encode(Result& result, const std::string& binary) const {
+		return encode(result, binary.data(), binary.size());
 	}
 
 	template <typename Result = std::string>
-	Result encode(const std::string& binary, bool checksum = false) const {
+	Result encode(const std::string& binary) const {
 		Result result;
-		encode(result, binary.data(), binary.size(), checksum);
+		encode(result, binary.data(), binary.size());
 		return result;
 	}
 
-	void decode(uinteger_t& result, const char* encoded, std::size_t encoded_size, bool checksum = false) const {
+	void decode(uinteger_t& result, const char* encoded, std::size_t encoded_size) const {
 		result = 0;
 		int sum = 0;
-		if (checksum) {
+		if (flags & BaseX::with_checksum) {
 			auto sz = encoded_size - 1;
-			sum ^= (sz / base) % base;
-			sum ^= (sz % base);
+			sum += (sz + sz / size) % size;
+			--encoded_size;
+		}
+
+		if (flags & BaseX::with_check) {
 			--encoded_size;
 		}
 
@@ -216,10 +256,11 @@ public:
 				auto c = *encoded;
 				if (c == padding) break;
 				auto d = ord(static_cast<int>(c));
-				sum ^= d;
+				if (d < 0) continue; // ignored character
 				if (d >= base) {
 					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
 				}
+				sum += d;
 				result = (result << base_bits) | d;
 				bp += block_size;
 			}
@@ -229,96 +270,118 @@ public:
 				auto c = *encoded;
 				if (c == padding) break;
 				auto d = ord(static_cast<int>(c));
+				if (d < 0) continue; // ignored character
 				if (d >= base) {
 					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
 				}
-				sum ^= d;
+				sum += d;
 				result = (result * uint_base) + d;
 				bp += block_size;
 			}
 		}
 
+		for (; encoded_size && *encoded == padding; --encoded_size, ++encoded);
+
 		result >>= (bp & 7);
 
-		if (checksum) {
-			for (; encoded_size; --encoded_size, ++encoded);
-			auto c = *encoded;
-			auto d = ord(static_cast<int>(c));
-			if (d >= base) {
-				throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
+		if (flags & BaseX::with_check) {
+			for (; encoded_size; --encoded_size, ++encoded) {
+				auto c = *encoded++;
+				auto d = ord(static_cast<int>(c));
+				if (d < 0) continue; // ignored character
+				if (d >= size) {
+					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
+				}
+				auto chk = static_cast<int>(result % size);
+				if (d != chk) {
+					throw std::invalid_argument("Error: Invalid check");
+				}
+				sum += chk;
+				break;
 			}
-			sum ^= d;
-			if (sum) {
-				throw std::invalid_argument("Error: Invalid checksum");
+		}
+
+		if (flags & BaseX::with_checksum) {
+			for (; encoded_size; --encoded_size, ++encoded) {
+				auto c = *encoded;
+				auto d = ord(static_cast<int>(c));
+				if (d < 0) continue; // ignored character
+				if (d >= size) {
+					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
+				}
+				sum += d;
+				if (sum % size) {
+					throw std::invalid_argument("Error: Invalid checksum");
+				}
+				break;
 			}
 		}
 	}
 
 	template <typename Result, typename = typename std::enable_if<!std::is_integral<Result>::value>::type>
-	void decode(Result& result, const char* encoded, size_t encoded_size, bool checksum = false) const {
+	void decode(Result& result, const char* encoded, size_t encoded_size) const {
 		uinteger_t num;
-		decode(num, encoded, encoded_size, checksum);
+		decode(num, encoded, encoded_size);
 		result = num.template str<Result>(256);
 	}
 
 	template <typename Result>
-	Result decode(const char* encoded, size_t encoded_size, bool checksum = false) const {
+	Result decode(const char* encoded, size_t encoded_size) const {
 		Result result;
-		decode(result, encoded, encoded_size, checksum);
+		decode(result, encoded, encoded_size);
 		return result;
 	}
 
 	template <typename Result = std::string, typename T, std::size_t N>
-	void decode(Result& result, T (&s)[N], bool checksum = false) const {
-		decode(result, s, N - 1, checksum);
+	void decode(Result& result, T (&s)[N]) const {
+		decode(result, s, N - 1);
 	}
 
 	template <typename Result = std::string, typename T, std::size_t N>
-	Result decode(T (&s)[N], bool checksum = false) const {
+	Result decode(T (&s)[N]) const {
 		Result result;
-		decode(result, s, N - 1, checksum);
+		decode(result, s, N - 1);
 		return result;
 	}
 
 	template <typename Result = std::string>
-	void decode(Result& result, const std::string& encoded, bool checksum = false) const {
-		decode(result, encoded.data(), encoded.size(), checksum);
+	void decode(Result& result, const std::string& encoded) const {
+		decode(result, encoded.data(), encoded.size());
 	}
 
 	template <typename Result = std::string>
-	Result decode(const std::string& encoded, bool checksum = false) const {
+	Result decode(const std::string& encoded) const {
 		Result result;
-		decode(result, encoded.data(), encoded.size(), checksum);
+		decode(result, encoded.data(), encoded.size());
 		return result;
 	}
 
-	bool is_valid(const char* encoded, size_t encoded_size, bool checksum = false) const {
+	bool is_valid(const char* encoded, size_t encoded_size) const {
 		int sum = 0;
-		if (checksum) {
+		if (flags & BaseX::with_checksum) {
 			auto sz = encoded_size - 1;
-			sum ^= (sz / base) % base;
-			sum ^= (sz % base);
+			sum += (sz + sz / size) % size;
 		}
 		for (; encoded_size; --encoded_size, ++encoded) {
 			auto d = ord(static_cast<int>(*encoded));
 			if (d >= base) {
 				return false;
 			}
-			sum ^= d;
+			sum += d;
 		}
-		if (checksum && sum) {
+		if (flags & BaseX::with_checksum && (sum % size)) {
 			return false;
 		}
 		return true;
 	}
 
 	template <typename T, std::size_t N>
-	bool is_valid(T (&s)[N], bool checksum = false) const {
-		return is_valid(s, N - 1, checksum);
+	bool is_valid(T (&s)[N]) const {
+		return is_valid(s, N - 1);
 	}
 
-	bool is_valid(const std::string& encoded, bool checksum = false) const {
-		return is_valid(encoded.data(), encoded.size(), checksum);
+	bool is_valid(const std::string& encoded) const {
+		return is_valid(encoded.data(), encoded.size());
 	}
 };
 
@@ -326,7 +389,12 @@ public:
 namespace base2 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base2() {
-		static constexpr BaseX encoder("01", "", "");
+		static constexpr BaseX encoder(0, "01", "", "", "");
+		return encoder;
+	}
+	template <typename uinteger_t = uinteger_t>
+	const BaseX& base2chk() {
+		static constexpr BaseX encoder(BaseX::with_checksum, "01", "", "", "");
 		return encoder;
 	}
 }
@@ -335,7 +403,12 @@ namespace base2 {
 namespace base8 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base8() {
-		static constexpr BaseX encoder("01234567", "", "");
+		static constexpr BaseX encoder(0, "01234567", "", "", "");
+		return encoder;
+	}
+	template <typename uinteger_t = uinteger_t>
+	const BaseX& base8chk() {
+		static constexpr BaseX encoder(BaseX::with_checksum, "01234567", "", "", "");
 		return encoder;
 	}
 }
@@ -344,7 +417,12 @@ namespace base8 {
 namespace base11 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base11() {
-		static constexpr BaseX encoder("0123456789a", "", "", IGNORE_CASE);
+		static constexpr BaseX encoder(BaseX::ignore_case, "0123456789a", "", "", "");
+		return encoder;
+	}
+	template <typename uinteger_t = uinteger_t>
+	const BaseX& base11chk() {
+		static constexpr BaseX encoder(BaseX::ignore_case | BaseX::with_checksum, "0123456789a", "", "", "");
 		return encoder;
 	}
 }
@@ -353,12 +431,17 @@ namespace base11 {
 namespace base16 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base16() {
-		static constexpr BaseX encoder("0123456789abcdef", "", "", IGNORE_CASE);
+		static constexpr BaseX encoder(BaseX::ignore_case, "0123456789abcdef", "", "", "");
+		return encoder;
+	}
+	template <typename uinteger_t = uinteger_t>
+	const BaseX& base16chk() {
+		static constexpr BaseX encoder(BaseX::ignore_case | BaseX::with_checksum, "0123456789abcdef", "", "", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& rfc4648() {
-		static constexpr BaseX encoder("0123456789ABCDEF", "", "");
+		static constexpr BaseX encoder(0, "0123456789ABCDEF", "", "", "");
 		return encoder;
 	}
 }
@@ -367,23 +450,27 @@ namespace base16 {
 namespace base32 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base32() {
-		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", "", "", IGNORE_CASE);
+		static constexpr BaseX encoder(BaseX::ignore_case, "0123456789abcdefghijklmnopqrstuv", "", "", "");
 		return encoder;
 	}
-	const BaseX& hex() {
-		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUV", "", "", IGNORE_CASE);
-		return encoder;
-	}
-	const BaseX& rfc4648() {
-		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", "\n\r", "========", BLOCK_PADDING);
-		return encoder;
-	}
-	const BaseX& rfc4648hex() {
-		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUV", "\n\r", "========", BLOCK_PADDING);
+	const BaseX& base32chk() {
+		static constexpr BaseX encoder(BaseX::ignore_case | BaseX::with_checksum, "0123456789abcdefghijklmnopqrstuv", "", "", "");
 		return encoder;
 	}
 	const BaseX& crockford() {
-		static constexpr BaseX encoder("0123456789ABCDEFGHJKMNPQRSTVWXYZ", "", "", IGNORE_CASE);
+		static constexpr BaseX encoder(BaseX::ignore_case, "0123456789ABCDEFGHJKMNPQRSTVWXYZ", "", "", "-0O1IL");
+		return encoder;
+	}
+	const BaseX& crockfordchk() {
+		static constexpr BaseX encoder(BaseX::ignore_case | BaseX::with_check, "0123456789ABCDEFGHJKMNPQRSTVWXYZ", "*~$=U", "", "-0O1IL");
+		return encoder;
+	}
+	const BaseX& rfc4648() {
+		static constexpr BaseX encoder(BaseX::block_padding, "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", "", "========", "\n\r");
+		return encoder;
+	}
+	const BaseX& rfc4648hex() {
+		static constexpr BaseX encoder(BaseX::block_padding, "0123456789ABCDEFGHIJKLMNOPQRSTUV", "", "========", "\n\r");
 		return encoder;
 	}
 }
@@ -392,7 +479,12 @@ namespace base32 {
 namespace base36 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base36() {
-		static constexpr BaseX encoder("0123456789abcdefghijklmnopqrstuvwxyz", "", "", IGNORE_CASE);
+		static constexpr BaseX encoder(BaseX::ignore_case, "0123456789abcdefghijklmnopqrstuvwxyz", "", "", "");
+		return encoder;
+	}
+	template <typename uinteger_t = uinteger_t>
+	const BaseX& base36chk() {
+		static constexpr BaseX encoder(BaseX::ignore_case | BaseX::with_checksum, "0123456789abcdefghijklmnopqrstuvwxyz", "", "", "");
 		return encoder;
 	}
 }
@@ -400,41 +492,67 @@ namespace base36 {
 // base58
 namespace base58 {
 	template <typename uinteger_t = uinteger_t>
-	const BaseX& gmp() {
-		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv", "", "");
+	const BaseX& base58() {
+		static constexpr BaseX encoder(0, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv", "", "", "");
+		return encoder;
+	}
+	template <typename uinteger_t = uinteger_t>
+	const BaseX& base58chk() {
+		static constexpr BaseX encoder(BaseX::with_checksum, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv", "", "", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& bitcoin() {
-		static constexpr BaseX encoder("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "", "");
+		static constexpr BaseX encoder(0, "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "", "", "");
+		return encoder;
+	}
+	template <typename uinteger_t = uinteger_t>
+	const BaseX& bitcoinchk() {
+		static constexpr BaseX encoder(BaseX::with_checksum, "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "", "", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& ripple() {
-		static constexpr BaseX encoder("rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz", "", "");
+		static constexpr BaseX encoder(0, "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz", "", "", "");
+		return encoder;
+	}
+	template <typename uinteger_t = uinteger_t>
+	const BaseX& ripplechk() {
+		static constexpr BaseX encoder(BaseX::with_checksum, "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz", "", "", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& flickr() {
-		static constexpr BaseX encoder("123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ", "", "");
+		static constexpr BaseX encoder(0, "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ", "", "", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
-	const BaseX& base58() {
-		return bitcoin<uinteger_t>();
+	const BaseX& flickrchk() {
+		static constexpr BaseX encoder(BaseX::with_checksum, "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ", "", "", "");
+		return encoder;
 	}
 }
 
 // base62
 namespace base62 {
 	template <typename uinteger_t = uinteger_t>
-	const BaseX& inverted() {
-		static constexpr BaseX encoder("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", "", "");
+	const BaseX& base62() {
+		static constexpr BaseX encoder(0, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "", "", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
-	const BaseX& base62() {
-		static constexpr BaseX encoder("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "", "");
+	const BaseX& base62chk() {
+		static constexpr BaseX encoder(BaseX::with_checksum, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "", "", "");
+		return encoder;
+	}
+	template <typename uinteger_t = uinteger_t>
+	const BaseX& inverted() {
+		static constexpr BaseX encoder(0, "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", "", "", "");
+		return encoder;
+	}
+	template <typename uinteger_t = uinteger_t>
+	const BaseX& invertedchk() {
+		static constexpr BaseX encoder(BaseX::with_checksum, "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", "", "", "");
 		return encoder;
 	}
 }
@@ -443,22 +561,31 @@ namespace base62 {
 namespace base64 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base64() {
-		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", "", "");
+		static constexpr BaseX encoder(0, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", "", "", "");
+		return encoder;
+	}
+	const BaseX& base64chk() {
+		static constexpr BaseX encoder(BaseX::with_checksum, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", "", "", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& url() {
-		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "", "");
+		static constexpr BaseX encoder(0, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "", "", "");
+		return encoder;
+	}
+	template <typename uinteger_t = uinteger_t>
+	const BaseX& urlchk() {
+		static constexpr BaseX encoder(BaseX::with_checksum, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "", "", "");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& rfc4648() {
-		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", "\n\r", "====", BLOCK_PADDING);
+		static constexpr BaseX encoder(BaseX::block_padding, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", "", "====", "\n\r");
 		return encoder;
 	}
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& rfc4648url() {
-		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "\n\r", "====", BLOCK_PADDING);
+		static constexpr BaseX encoder(BaseX::block_padding, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "", "====", "\n\r");
 		return encoder;
 	}
 }
@@ -467,7 +594,11 @@ namespace base64 {
 namespace base66 {
 	template <typename uinteger_t = uinteger_t>
 	const BaseX& base66() {
-		static constexpr BaseX encoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~", "", "");
+		static constexpr BaseX encoder(0, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~", "", "", "");
+		return encoder;
+	}
+	const BaseX& base66chk() {
+		static constexpr BaseX encoder(BaseX::with_checksum, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~", "", "", "");
 		return encoder;
 	}
 }
