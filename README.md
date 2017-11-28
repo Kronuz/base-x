@@ -2,24 +2,36 @@
 
 [![Build Status](https://travis-ci.org/Kronuz/base-x.svg?branch=master)](https://travis-ci.org/Kronuz/base-x)
 
+
 ### BaseX encoder / decoder for C++
 
 This is a fast base encoder / decoder of any given alphabet.
 
 
-## Example
-
-Base58
+#### Example
 
 ``` cpp
+// example.cc
+// g++ -std=c++14 -o example example.cc
+
 #include <iostream>
 #include "base_x.hh"
 
-auto encoded = base58::base58().encode("Hello world!");
+int main() {
+    auto encoded = Base58::base58().encode("Hello world!");
 
-std::cout << encoded << std::endl;
-// => 2NEpo7TZRhna7vSvL
+    std::cout << encoded << std::endl;
+    // => 1LDlk6QWOejX6rPrJ
+
+    return 0;
+}
 ```
+
+
+#### Compilation
+
+* g++ and clang++ are supported.
+* C++14 is required.
 
 
 ### Alphabets
