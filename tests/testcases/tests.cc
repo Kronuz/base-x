@@ -30,6 +30,8 @@ THE SOFTWARE.
 static constexpr BaseX test_base2(0, "01", "", "", "");
 static constexpr BaseX test_base16(0, "0123456789abcdef", "", "", "");
 static constexpr BaseX test_base58(0, "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "", "", "");
+static constexpr BaseX test_base16_le(BaseX::ignore_case | BaseX::little_endian, "0123456789abcdef", "", "", "");
+static constexpr BaseX test_base16chk_le(BaseX::ignore_case | BaseX::with_checksum | BaseX::little_endian, "0123456789abcdef", "", "", "");
 
 
 TEST(UUID, Encode) {
@@ -69,9 +71,6 @@ TEST(base16, Encoder) {
 	EXPECT_EQ(Base16::rfc4648().encode("ABCD"), "41424344");
 	EXPECT_EQ(Base16::rfc4648().encode("ABCDE"), "4142434445");
 	EXPECT_EQ(Base16::rfc4648().encode("ABCDEF"), "414243444546");
-
-	EXPECT_EQ(Base16::base16_le().encode("ABCDEF"), "645444342414");
-	EXPECT_EQ(Base16::base16chk_le().encode("ABCDEF"), "6454443424147");
 }
 
 TEST(base16, Decoder) {
@@ -88,9 +87,6 @@ TEST(base16, Decoder) {
 	EXPECT_EQ(Base16::rfc4648().decode("41424344"), "ABCD");
 	EXPECT_EQ(Base16::rfc4648().decode("4142434445"), "ABCDE");
 	EXPECT_EQ(Base16::rfc4648().decode("414243444546"), "ABCDEF");
-
-	EXPECT_EQ(Base16::base16_le().decode("645444342414"), "ABCDEF");
-	EXPECT_EQ(Base16::base16chk_le().decode("6454443424147"), "ABCDEF");
 }
 
 TEST(base32, Encoder) {
@@ -362,4 +358,11 @@ TEST(base58, Tests) {
 	EXPECT_EQ(test_base58.encode(uinteger_t("771b0c28608484562a292e5d5d2b30", 16)), "4LGYeWhyfrjUByibUqdVR");
 	EXPECT_EQ(test_base58.encode(uinteger_t("78ff9a0e56f9e88dc1cd654b40d019", 16)), "4PLggs66qAdbmZgkaPihe");
 	EXPECT_EQ(test_base58.encode(uinteger_t("6d691bdd736346aa5a0a95b373b2ab", 16)), "44Y6qTgSvRMkdqpQ5ufkN");
+}
+
+TEST(base16, le) {
+	EXPECT_EQ(test_base16_le.encode("ABCDEF"), "645444342414");
+	EXPECT_EQ(test_base16chk_le.encode("ABCDEF"), "6454443424147");
+	EXPECT_EQ(test_base16_le.decode("645444342414"), "ABCDEF");
+	EXPECT_EQ(test_base16chk_le.decode("6454443424147"), "ABCDEF");
 }

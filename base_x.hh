@@ -408,15 +408,6 @@ struct Base2 {
 		static constexpr BaseX encoder(BaseX::with_checksum, "01", "", "", "");
 		return encoder;
 	}
-
-	static const BaseX& base2_le() {
-		static constexpr BaseX encoder(BaseX::little_endian, "01", "", "", "");
-		return encoder;
-	}
-	static const BaseX& base2chk_le() {
-		static constexpr BaseX encoder(BaseX::with_checksum | BaseX::little_endian, "01", "", "", "");
-		return encoder;
-	}
 };
 
 // base8
@@ -429,15 +420,7 @@ struct Base8 {
 		static constexpr BaseX encoder(BaseX::with_checksum, "01234567", "", "", "");
 		return encoder;
 	}
-
-	static const BaseX& base8_le() {
-		static constexpr BaseX encoder(BaseX::little_endian, "01234567", "", "", "");
-		return encoder;
-	}
-	static const BaseX& base8chk_le() {
-		static constexpr BaseX encoder(BaseX::with_checksum | BaseX::little_endian, "01234567", "", "", "");
-		return encoder;
-	}};
+};
 
 // base11
 struct Base11 {
@@ -447,15 +430,6 @@ struct Base11 {
 	}
 	static const BaseX& base11chk() {
 		static constexpr BaseX encoder(BaseX::ignore_case | BaseX::with_checksum, "0123456789a", "", "", "");
-		return encoder;
-	}
-
-	static const BaseX& base11_le() {
-		static constexpr BaseX encoder(BaseX::ignore_case | BaseX::little_endian, "0123456789a", "", "", "");
-		return encoder;
-	}
-	static const BaseX& base11chk_le() {
-		static constexpr BaseX encoder(BaseX::ignore_case | BaseX::with_checksum | BaseX::little_endian, "0123456789a", "", "", "");
 		return encoder;
 	}
 };
@@ -472,15 +446,6 @@ struct Base16 {
 	}
 	static const BaseX& rfc4648() {
 		static constexpr BaseX encoder(0, "0123456789ABCDEF", "", "", "");
-		return encoder;
-	}
-
-	static const BaseX& base16_le() {
-		static constexpr BaseX encoder(BaseX::ignore_case | BaseX::little_endian, "0123456789abcdef", "", "", "");
-		return encoder;
-	}
-	static const BaseX& base16chk_le() {
-		static constexpr BaseX encoder(BaseX::ignore_case | BaseX::with_checksum | BaseX::little_endian, "0123456789abcdef", "", "", "");
 		return encoder;
 	}
 };
@@ -511,23 +476,6 @@ struct Base32 {
 		static constexpr BaseX encoder(BaseX::block_padding, "0123456789ABCDEFGHIJKLMNOPQRSTUV", "", "========", "\n\r");
 		return encoder;
 	}
-
-	static const BaseX& base32_le() {
-		static constexpr BaseX encoder(BaseX::ignore_case | BaseX::little_endian, "0123456789abcdefghijklmnopqrstuv", "", "", "");
-		return encoder;
-	}
-	static const BaseX& base32chk_le() {
-		static constexpr BaseX encoder(BaseX::ignore_case | BaseX::with_checksum | BaseX::little_endian, "0123456789abcdefghijklmnopqrstuv", "", "", "");
-		return encoder;
-	}
-	static const BaseX& crockford_le() {
-		static constexpr BaseX encoder(BaseX::ignore_case | BaseX::little_endian, "0123456789ABCDEFGHJKMNPQRSTVWXYZ", "", "", "-0O1IL");
-		return encoder;
-	}
-	static const BaseX& crockfordchk_le() {
-		static constexpr BaseX encoder(BaseX::ignore_case | BaseX::with_check | BaseX::little_endian, "0123456789ABCDEFGHJKMNPQRSTVWXYZ", "*~$=U", "", "-0O1IL");
-		return encoder;
-	}
 };
 
 // base36
@@ -538,15 +486,6 @@ struct Base36 {
 	}
 	static const BaseX& base36chk() {
 		static constexpr BaseX encoder(BaseX::ignore_case | BaseX::with_checksum, "0123456789abcdefghijklmnopqrstuvwxyz", "", "", "");
-		return encoder;
-	}
-
-	static const BaseX& base36_le() {
-		static constexpr BaseX encoder(BaseX::ignore_case | BaseX::little_endian, "0123456789abcdefghijklmnopqrstuvwxyz", "", "", "");
-		return encoder;
-	}
-	static const BaseX& base36chk_le() {
-		static constexpr BaseX encoder(BaseX::ignore_case | BaseX::with_checksum | BaseX::little_endian, "0123456789abcdefghijklmnopqrstuvwxyz", "", "", "");
 		return encoder;
 	}
 };
@@ -585,37 +524,12 @@ struct Base58 {
 		static constexpr BaseX encoder(BaseX::with_checksum, "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ", "", "", "");
 		return encoder;
 	}
-
-	static const BaseX& base58_le() {
-		static constexpr BaseX encoder(BaseX::little_endian, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv", "", "", "");
+	static const BaseX& dubalu() {
+		static constexpr BaseX encoder(0, "KDB45678a9oA2efghijkUnbpqrstMvwxyzc3CdEFGHJlLuNPQRSTmVWXYZ", "", "", "");
 		return encoder;
 	}
-	static const BaseX& base58chk_le() {
-		static constexpr BaseX encoder(BaseX::with_checksum | BaseX::little_endian, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv", "", "", "");
-		return encoder;
-	}
-	static const BaseX& bitcoin_le() {
-		static constexpr BaseX encoder(BaseX::little_endian, "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "", "", "");
-		return encoder;
-	}
-	static const BaseX& bitcoinchk_le() {
-		static constexpr BaseX encoder(BaseX::with_checksum | BaseX::little_endian, "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "", "", "");
-		return encoder;
-	}
-	static const BaseX& ripple_le() {
-		static constexpr BaseX encoder(BaseX::little_endian, "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz", "", "", "");
-		return encoder;
-	}
-	static const BaseX& ripplechk_le() {
-		static constexpr BaseX encoder(BaseX::with_checksum | BaseX::little_endian, "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz", "", "", "");
-		return encoder;
-	}
-	static const BaseX& flickr_le() {
-		static constexpr BaseX encoder(BaseX::little_endian, "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ", "", "", "");
-		return encoder;
-	}
-	static const BaseX& flickrchk_le() {
-		static constexpr BaseX encoder(BaseX::with_checksum | BaseX::little_endian, "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ", "", "", "");
+	static const BaseX& dubaluchk() {
+		static constexpr BaseX encoder(BaseX::with_checksum, "KDB45678a9oA2efghijkUnbpqrstMvwxyzc3CdEFGHJlLuNPQRSTmVWXYZ", "", "", "");
 		return encoder;
 	}
 };
@@ -636,23 +550,6 @@ struct Base62 {
 	}
 	static const BaseX& invertedchk() {
 		static constexpr BaseX encoder(BaseX::with_checksum, "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", "", "", "");
-		return encoder;
-	}
-
-	static const BaseX& base62_le() {
-		static constexpr BaseX encoder(BaseX::little_endian, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "", "", "");
-		return encoder;
-	}
-	static const BaseX& base62chk_le() {
-		static constexpr BaseX encoder(BaseX::with_checksum | BaseX::little_endian, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "", "", "");
-		return encoder;
-	}
-	static const BaseX& inverted_le() {
-		static constexpr BaseX encoder(BaseX::little_endian, "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", "", "", "");
-		return encoder;
-	}
-	static const BaseX& invertedchk_le() {
-		static constexpr BaseX encoder(BaseX::with_checksum | BaseX::little_endian, "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", "", "", "");
 		return encoder;
 	}
 };
@@ -683,23 +580,6 @@ struct Base64 {
 		static constexpr BaseX encoder(BaseX::block_padding, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "", "====", "\n\r");
 		return encoder;
 	}
-
-	static const BaseX& base64_le() {
-		static constexpr BaseX encoder(BaseX::little_endian, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", "", "", "");
-		return encoder;
-	}
-	static const BaseX& base64chk_le() {
-		static constexpr BaseX encoder(BaseX::with_checksum | BaseX::little_endian, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", "", "", "");
-		return encoder;
-	}
-	static const BaseX& url_le() {
-		static constexpr BaseX encoder(BaseX::little_endian, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "", "", "");
-		return encoder;
-	}
-	static const BaseX& urlchk_le() {
-		static constexpr BaseX encoder(BaseX::with_checksum | BaseX::little_endian, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "", "", "");
-		return encoder;
-	}
 };
 
 // base66
@@ -710,15 +590,6 @@ struct Base66 {
 	}
 	static const BaseX& base66chk() {
 		static constexpr BaseX encoder(BaseX::with_checksum, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~", "", "", "");
-		return encoder;
-	}
-
-	static const BaseX& base66_le() {
-		static constexpr BaseX encoder(BaseX::little_endian, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~", "", "", "");
-		return encoder;
-	}
-	static const BaseX& base66chk_le() {
-		static constexpr BaseX encoder(BaseX::with_checksum | BaseX::little_endian, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~", "", "", "");
 		return encoder;
 	}
 };
