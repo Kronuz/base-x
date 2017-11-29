@@ -81,6 +81,7 @@ public:
 		for (int cp = 0; cp < base; ++cp) {
 			auto ch = alphabet[cp];
 			_chr[cp] = ch;
+			assert(_ord[(unsigned char)ch] == base);  // Duplicate character in the alphabet
 			_ord[(unsigned char)ch] = cp;
 			if (flags & BaseX::ignore_case) {
 				if (ch >= 'A' && ch <='Z') {
@@ -94,6 +95,7 @@ public:
 			auto ch = extended[i];
 			auto cp = base + i;
 			_chr[cp] = ch;
+			assert(_ord[(unsigned char)ch] == base); // Duplicate character in the extended alphabet
 			_ord[(unsigned char)ch] = cp;
 			if (flags & BaseX::ignore_case) {
 				if (ch >= 'A' && ch <='Z') {
@@ -108,6 +110,7 @@ public:
 			auto ch = translate[i];
 			auto ncp = _ord[(unsigned char)ch];
 			if (ncp >= base) {
+				assert(_ord[(unsigned char)ch] == base); // Invalid translation character
 				_ord[(unsigned char)ch] = cp;
 				if (flags & BaseX::ignore_case) {
 					if (ch >= 'A' && ch <='Z') {
@@ -525,11 +528,25 @@ struct Base58 {
 		return encoder;
 	}
 	static const BaseX& dubalu() {
-		static constexpr BaseX encoder(0, "KDB45678a9oA2efghijkUnbpqrstMvwxyzc3CdEFGHJlLuNPQRSTmVWXYZ", "", "", "");
+		// flikr = 2MpziBr1sdtu52
+		//	2 <-> D
+		//	M <-> u
+		//	p <-> b
+		//	z <-> a
+		//	i <-> l
+		//  B <-> v
+		// flickr 2m8RJBsadkB78iTJumZe7
+		//	2 <-> D
+		//	m <-> U
+		//	8 <-> B
+		//	R <-> A
+		//	J <-> L
+		//  B <-> v
+		static constexpr BaseX encoder(0, "iD34567B9zpcdefghljkUnobqrstM8wxyaRvC2EFGHLKJuNPQASTmVWXYZ", "", "", "l1Io0O");
 		return encoder;
 	}
 	static const BaseX& dubaluchk() {
-		static constexpr BaseX encoder(BaseX::with_checksum, "KDB45678a9oA2efghijkUnbpqrstMvwxyzc3CdEFGHJlLuNPQRSTmVWXYZ", "", "", "");
+		static constexpr BaseX encoder(BaseX::with_checksum, "iD34567B9zpcdefghljkUnobqrstM8wxyaRvC2EFGHLKJuNPQASTmVWXYZ", "", "", "l1Io0O");
 		return encoder;
 	}
 };
