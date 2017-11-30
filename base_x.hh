@@ -527,26 +527,8 @@ struct Base58 {
 		static constexpr BaseX encoder(BaseX::with_checksum, "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ", "", "", "");
 		return encoder;
 	}
-	static const BaseX& dubalu() {
-		// flikr = 2MpziBr1sdtu52
-		//	2 <-> D
-		//	M <-> u
-		//	p <-> b
-		//	z <-> a
-		//	i <-> l
-		//  B <-> v
-		// flickr 2m8RJBsadkB78iTJumZe7
-		//	2 <-> D
-		//	m <-> U
-		//	8 <-> B
-		//	R <-> A
-		//	J <-> L
-		//  B <-> v
-		static constexpr BaseX encoder(0, "iD34567B9zpcdefghljkUnobqrstM8wxyaRvC2EFGHLKJuNPQASTmVWXYZ", "", "", "l1Io0O");
-		return encoder;
-	}
 	static const BaseX& dubaluchk() {
-		static constexpr BaseX encoder(BaseX::with_checksum, "iD34567B9zpcdefghljkUnobqrstM8wxyaRvC2EFGHLKJuNPQASTmVWXYZ", "", "", "l1Io0O");
+		static constexpr BaseX encoder(BaseX::with_checksum, "xdqBJyDQzFCGHwKA9MN7POUER4ST3aVLZ5jYcfbghWkm2iueln8prXst6v", "", "", "l1IO0o");
 		return encoder;
 	}
 };
