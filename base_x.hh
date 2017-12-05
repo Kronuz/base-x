@@ -380,6 +380,7 @@ public:
 		}
 		for (; encoded_size; --encoded_size, ++encoded) {
 			auto d = ord(static_cast<int>(*encoded));
+			if (d < 0) continue; // ignored character
 			if (d >= base) {
 				return false;
 			}
