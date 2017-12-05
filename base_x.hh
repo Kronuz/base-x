@@ -258,18 +258,12 @@ public:
 	void decode(uinteger_t& result, const char* encoded, std::size_t encoded_size) const {
 		result = 0;
 		int sum = 0;
+		int sumsz = 0;
 		int direction = 1;
 
 		auto sz = encoded_size;
-		if (flags & BaseX::with_checksum) {
-			--sz;
-			sz = (sz + sz / size) % size;
-			sum += sz;
-		}
-
-		if (flags & BaseX::with_check) {
-			--sz;
-		}
+		if (flags & BaseX::with_checksum) --sz;
+		if (flags & BaseX::with_check) --sz;
 
 		int bp = 0;
 
@@ -283,6 +277,7 @@ public:
 					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, c) + "' at " + std::to_string(encoded_size - sz));
 				}
 				sum += d;
+				++sumsz;
 				result = (result << base_bits) | d;
 				bp += block_size;
 			}
@@ -297,6 +292,7 @@ public:
 					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, c) + "' at " + std::to_string(encoded_size - sz));
 				}
 				sum += d;
+				++sumsz;
 				result = (result * uint_base) + d;
 				bp += block_size;
 			}
@@ -317,7 +313,7 @@ public:
 				throw std::invalid_argument("Error: Invalid check");
 			}
 			sum += chk;
-
+			++sumsz;
 			++encoded;
 		}
 
@@ -328,6 +324,7 @@ public:
 				throw std::invalid_argument("Error: Invalid character: '" + std::string(1, c) + "' at " + std::to_string(encoded_size - sz));
 			}
 			sum += d;
+			sum += (sumsz + sumsz / size) % size;
 			if (sum % size) {
 				throw std::invalid_argument("Error: Invalid checksum");
 			}
@@ -374,10 +371,8 @@ public:
 
 	bool is_valid(const char* encoded, size_t encoded_size) const {
 		int sum = 0;
-		if (flags & BaseX::with_checksum) {
-			auto sz = encoded_size - 1;
-			sum += (sz + sz / size) % size;
-		}
+		int sumsz = 0;
+		if (flags & BaseX::with_checksum) --sumsz;
 		for (; encoded_size; --encoded_size, ++encoded) {
 			auto d = ord(static_cast<int>(*encoded));
 			if (d < 0) continue; // ignored character
@@ -385,9 +380,13 @@ public:
 				return false;
 			}
 			sum += d;
+			++sumsz;
 		}
-		if (flags & BaseX::with_checksum && (sum % size)) {
-			return false;
+		if (flags & BaseX::with_checksum) {
+			sum += (sumsz + sumsz / size) % size;
+			if (sum % size) {
+				return false;
+			}
 		}
 		return true;
 	}
