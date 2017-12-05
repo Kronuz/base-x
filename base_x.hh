@@ -260,27 +260,27 @@ public:
 		int sum = 0;
 		int direction = 1;
 
+		auto sz = encoded_size;
 		if (flags & BaseX::with_checksum) {
-			auto sz = encoded_size - 1;
+			--sz;
 			sz = (sz + sz / size) % size;
 			sum += sz;
-			--encoded_size;
 		}
 
 		if (flags & BaseX::with_check) {
-			--encoded_size;
+			--sz;
 		}
 
 		int bp = 0;
 
 		if (base_bits) {
-			for (; encoded_size; --encoded_size, encoded += direction) {
+			for (; sz; --sz, encoded += direction) {
 				auto c = *encoded;
 				if (c == padding) break;
 				auto d = ord(static_cast<int>(c));
 				if (d < 0) continue; // ignored character
 				if (d >= base) {
-					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
+					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, c) + "' at " + std::to_string(encoded_size - sz));
 				}
 				sum += d;
 				result = (result << base_bits) | d;
@@ -288,13 +288,13 @@ public:
 			}
 		} else {
 			uinteger_t uint_base = base;
-			for (; encoded_size; --encoded_size, encoded += direction) {
+			for (; sz; --sz, encoded += direction) {
 				auto c = *encoded;
 				if (c == padding) break;
 				auto d = ord(static_cast<int>(c));
 				if (d < 0) continue; // ignored character
 				if (d >= base) {
-					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
+					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, c) + "' at " + std::to_string(encoded_size - sz));
 				}
 				sum += d;
 				result = (result * uint_base) + d;
@@ -302,7 +302,7 @@ public:
 			}
 		}
 
-		for (; encoded_size && *encoded == padding; --encoded_size, ++encoded);
+		for (; sz && *encoded == padding; --sz, ++encoded);
 
 		result >>= (bp & 7);
 
@@ -310,7 +310,7 @@ public:
 			auto c = *encoded;
 			auto d = ord(static_cast<int>(c));
 			if (d < 0 || d >= size) {
-				throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
+				throw std::invalid_argument("Error: Invalid character: '" + std::string(1, c) + "' at " + std::to_string(encoded_size - sz));
 			}
 			auto chk = static_cast<int>(result % size);
 			if (d != chk) {
@@ -325,7 +325,7 @@ public:
 			auto c = *encoded;
 			auto d = ord(static_cast<int>(c));
 			if (d < 0 || d >= size) {
-				throw std::invalid_argument("Error: Invalid character: '" + std::string(1, *encoded) + "' at " + std::to_string(encoded_size));
+				throw std::invalid_argument("Error: Invalid character: '" + std::string(1, c) + "' at " + std::to_string(encoded_size - sz));
 			}
 			sum += d;
 			if (sum % size) {
