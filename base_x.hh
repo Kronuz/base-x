@@ -214,24 +214,24 @@ public:
 	}
 
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
-	void encode(Result& result, const unsigned char* decoded, size_t decoded_size) const {
+	void encode(Result& result, const unsigned char* decoded, std::size_t decoded_size) const {
 		encode(result, uinteger_t(decoded, decoded_size, 256));
 	}
 
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
-	Result encode(const unsigned char* decoded, size_t decoded_size) const {
+	Result encode(const unsigned char* decoded, std::size_t decoded_size) const {
 		Result result;
 		encode(result, uinteger_t(decoded, decoded_size, 256));
 		return result;
 	}
 
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
-	void encode(Result& result, const char* decoded, size_t decoded_size) const {
+	void encode(Result& result, const char* decoded, std::size_t decoded_size) const {
 		encode(result, uinteger_t(decoded, decoded_size, 256));
 	}
 
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
-	Result encode(const char* decoded, size_t decoded_size) const {
+	Result encode(const char* decoded, std::size_t decoded_size) const {
 		Result result;
 		encode(result, uinteger_t(decoded, decoded_size, 256));
 		return result;
@@ -338,14 +338,14 @@ public:
 	}
 
 	template <typename Result, typename = typename std::enable_if_t<uinteger_t::is_result<Result>::value>>
-	void decode(Result& result, const char* encoded, size_t encoded_size) const {
+	void decode(Result& result, const char* encoded, std::size_t encoded_size) const {
 		uinteger_t num;
 		decode(num, encoded, encoded_size);
 		result = num.template str<Result>(256);
 	}
 
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value or std::is_integral<Result>::value>>
-	Result decode(const char* encoded, size_t encoded_size) const {
+	Result decode(const char* encoded, std::size_t encoded_size) const {
 		Result result;
 		decode(result, encoded, encoded_size);
 		return result;
@@ -375,7 +375,7 @@ public:
 		return result;
 	}
 
-	bool is_valid(const char* encoded, size_t encoded_size) const {
+	bool is_valid(const char* encoded, std::size_t encoded_size) const {
 		int sum = 0;
 		int sumsz = 0;
 		if (flags & BaseX::with_checksum) --sumsz;
