@@ -154,18 +154,18 @@ public:
 					v |= (static_cast<uinteger_t::digit>(*ptr++) << uinteger_t::half_digit_bits);
 					do {
 						auto d = static_cast<int>((v >> shift) & base_mask);
-						sum += d;
 						result.push_back(chr(d));
 						shift += base_bits;
+						sum += d;
 					} while (shift <= uinteger_t::half_digit_bits);
 					shift -= uinteger_t::half_digit_bits;
 				}
 				v >>= (shift + uinteger_t::half_digit_bits);
 				while (v) {
 					auto d = static_cast<int>(v & base_mask);
-					sum += d;
 					result.push_back(chr(d));
 					v >>= base_bits;
+					sum += d;
 				}
 				auto s = chr(0);
 				auto rit_f = std::find_if(result.rbegin(), result.rend(), [s](const char& c) { return c != s; });
@@ -178,9 +178,9 @@ public:
 				do {
 					auto r = quotient.divmod(uint_base);
 					auto d = static_cast<int>(r.second);
-					sum += d;
 					result.push_back(chr(d));
 					quotient = std::move(r.first);
+					sum += d;
 				} while (quotient);
 			}
 			std::reverse(result.begin(), result.end());
