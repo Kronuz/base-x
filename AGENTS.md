@@ -7,13 +7,15 @@ Notes for agents and contributors working in this repo.
 - `base_x.hh` — the codec. One class, `BaseX`, plus the alphabet factory structs
   (`Base2`, `Base8`, `Base11`, `Base16`, `Base32`, `Base36`, `Base58`, `Base59`,
   `Base62`, `Base64`, `Base66`). Header-only.
-- `uinteger_t.hh` — the arbitrary-precision unsigned integer `base_x.hh` is built
-  on. `base_x.hh` includes it; keep the two together.
 - `test/test.cc` — smoke test: encode/decode round-trips across base16/base32/
   base58/base62/base64 plus the check and checksum paths.
-- `CMakeLists.txt` — defines the `base_x` `INTERFACE` target and a `ctest` test.
-- `LICENSE` — MIT, Copyright (c) 2017,2019 German Mendez Bravo (Kronuz);
-  `uinteger_t.hh` also carries Jason Lee's 2013-2017 copyright.
+- `CMakeLists.txt` — defines the `base_x` `INTERFACE` target (which fetches the
+  `uinteger_t` dependency via FetchContent) and a `ctest` test.
+- `LICENSE` — MIT, Copyright (c) 2017,2019 German Mendez Bravo (Kronuz).
+
+The library depends on [uinteger_t](https://github.com/Kronuz/uinteger_t)
+(`base_x.hh` does `#include "uinteger_t.hh"`); it is fetched by CMake, not
+vendored here.
 - `README.md` — usage, alphabet catalog, API reference.
 - `ARCHITECTURE.md` — encoding scheme, the two encode paths, check/checksum/
   padding, complexity.
@@ -37,8 +39,8 @@ include path (see `tests/Makefile`).
 
 - C++17. The code uses `std::string_view`, `constexpr` constructors, and the
   power-of-two fast path.
-- Header-only. Keep the library in `base_x.hh` and `uinteger_t.hh`; there is no
-  `.cc` to compile for the library itself.
+- Header-only (`base_x.hh`); there is no `.cc` to compile for the library itself.
+  It depends on the `uinteger_t` library, fetched by CMake (not vendored here).
 - Indentation is tabs, matching the existing source.
 - Use double quotes in code blocks per the docs' style.
 
@@ -78,15 +80,18 @@ include path (see `tests/Makefile`).
   leading characters the way Bitcoin base58check expects. This is by design.
 - `ignore_case` affects decoding only. Encoding always emits the alphabet's own
   casing.
-- The two headers are versioned together with Xapiand's vendored copy under
+- `base_x.hh` is versioned together with Xapiand's vendored copy under
   `Xapiand/src/`. When de-staling, diff against that copy; it is the more
-  actively maintained one. Keep the MIT headers intact when editing.
+  actively maintained one. Keep the MIT header intact when editing. (`uinteger_t`
+  is its own repo now and is de-staled there, not here.)
 - `Base58::dubaluchk()`'s alphabet and `Base64`'s `rfc4648url_unpadded()` came
   from the Xapiand sync; they are intentional, not stray edits.
 
 ## Provenance
 
 This code was extracted from
-[Xapiand](https://github.com/Kronuz/Xapiand), where `src/base_x.hh` and
-`src/uinteger_t.hh` are vendored. That copy is the more actively maintained one;
-this repo tracks it. Keep the MIT headers intact when editing.
+[Xapiand](https://github.com/Kronuz/Xapiand), where `src/base_x.hh` is vendored.
+That copy is the more actively maintained one; this repo tracks it. The
+arbitrary-precision integer it uses lives in its own repo,
+[uinteger_t](https://github.com/Kronuz/uinteger_t), depended on rather than
+vendored. Keep the MIT header intact when editing.

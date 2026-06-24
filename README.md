@@ -37,18 +37,18 @@ materializes the whole value at once.
 
 ## Install
 
-Header-only. Copy `base_x.hh` and `uinteger_t.hh` somewhere on your include path
-and include the codec:
+Header-only, but it depends on
+[uinteger_t](https://github.com/Kronuz/uinteger_t): `base_x.hh` does
+`#include "uinteger_t.hh"` for the arbitrary-precision integer it builds on.
+The codec itself is just one header:
 
 ```cpp
 #include "base_x.hh"
 ```
 
-`base_x.hh` includes `uinteger_t.hh`, so keep the two side by side. C++17 is
-required.
-
-With CMake there's an `INTERFACE` target (`base_x`) you can link against. To pull
-it in via `FetchContent`:
+The clean way to get both is CMake. The `base_x` `INTERFACE` target fetches
+`uinteger_t` and propagates it transitively, so linking `base_x` puts both
+`base_x.hh` and `uinteger_t.hh` on your include path:
 
 ```cmake
 include(FetchContent)
@@ -59,10 +59,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(base_x)
 
-target_link_libraries(your_target PRIVATE base_x)
+target_link_libraries(your_target PRIVATE base_x)   # uinteger_t comes along
 ```
 
-The `base_x` target adds the include directory and requests `cxx_std_17`.
+The `base_x` target adds the include directory, links `uinteger_t`, and requests
+`cxx_std_17`. If you'd rather drop the headers in by hand, put both `base_x.hh`
+and `uinteger_t.hh` on your include path. C++17 is required.
 
 ## Usage
 
@@ -190,12 +192,18 @@ checksum alphabets, whether the checksum holds. It never throws.
 
 ## Build & test
 
-Header-only, so there's nothing to compile for use. To run the smoke test:
+Header-only, so there's nothing to compile for use. CMake fetches the
+`uinteger_t` dependency and runs the smoke test:
 
 ```sh
-c++ -std=c++17 -I. test/test.cc -o /tmp/basex_test && /tmp/basex_test
-# or with CMake:
 cmake -B build && cmake --build build && ctest --test-dir build
+```
+
+To compile the test directly, put `uinteger_t.hh` on the include path too (it is
+not vendored here):
+
+```sh
+c++ -std=c++17 -I. -I/path/to/uinteger_t test/test.cc -o /tmp/basex_test && /tmp/basex_test
 ```
 
 The test prints `base-x OK: ...` and exits 0 on success. It uses `assert`, so
@@ -217,11 +225,14 @@ build without `NDEBUG`.
 
 ## Provenance
 
-Extracted from [Xapiand](https://github.com/Kronuz/Xapiand), where the same
-`base_x.hh` and `uinteger_t.hh` are vendored under `src/`. That copy is the more
-actively maintained one; this repo tracks it.
+Extracted from [Xapiand](https://github.com/Kronuz/Xapiand), where `base_x.hh` is
+vendored under `src/`. That copy is the more actively maintained one; this repo
+tracks it. The arbitrary-precision integer it builds on lives in its own repo,
+[uinteger_t](https://github.com/Kronuz/uinteger_t), which this library depends on
+rather than vendoring.
 
 ## License
 
-MIT. Copyright (c) 2017,2019 German Mendez Bravo (Kronuz). `uinteger_t.hh` also
-carries Copyright (c) 2013-2017 Jason Lee. See [LICENSE](LICENSE).
+MIT. Copyright (c) 2017,2019 German Mendez Bravo (Kronuz). See [LICENSE](LICENSE).
+The [uinteger_t](https://github.com/Kronuz/uinteger_t) dependency carries its own
+license.
