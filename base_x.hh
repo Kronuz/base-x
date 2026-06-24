@@ -2,7 +2,7 @@
 base_x.hh
 BaseX encoder / decoder for C++
 
-Copyright (c) 2017 German Mendez Bravo (Kronuz) @ german dot mb at gmail.com
+Copyright (c) 2017,2019 German Mendez Bravo (Kronuz) @ german dot mb at gmail.com
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,9 +26,11 @@ THE SOFTWARE.
 #ifndef __BASE_X__H_
 #define __BASE_X__H_
 
+#include <cassert>          // for assert
 #include <algorithm>        // for std::find_if, std::reverse
 #include <stdexcept>        // for std::invalid_argument
 #include <string>           // for std::string
+#include <string_view>      // for std::string_view
 #include <type_traits>      // for std::enable_if_t
 
 #include "uinteger_t.hh"
@@ -83,7 +85,7 @@ public:
 		for (int cp = 0; cp < alphabet_base; ++cp) {
 			auto ch = alphabet[cp];
 			_chr[cp] = ch;
-			ASSERT(_ord[(unsigned char)ch] == alphabet_base);  // Duplicate character in the alphabet
+			assert(_ord[(unsigned char)ch] == alphabet_base);  // Duplicate character in the alphabet
 			_ord[(unsigned char)ch] = cp;
 			if (flags & BaseX::ignore_case) {
 				if (ch >= 'A' && ch <='Z') {
@@ -97,7 +99,7 @@ public:
 			auto ch = extended[i];
 			auto cp = alphabet_base + i;
 			_chr[cp] = ch;
-			ASSERT(_ord[(unsigned char)ch] == alphabet_base); // Duplicate character in the extended alphabet
+			assert(_ord[(unsigned char)ch] == alphabet_base); // Duplicate character in the extended alphabet
 			_ord[(unsigned char)ch] = cp;
 			if (flags & BaseX::ignore_case) {
 				if (ch >= 'A' && ch <='Z') {
@@ -112,7 +114,7 @@ public:
 			auto ch = translate[i];
 			auto ncp = _ord[(unsigned char)ch];
 			if (ncp >= alphabet_base) {
-				ASSERT(_ord[(unsigned char)ch] == alphabet_base); // Invalid translation character
+				assert(_ord[(unsigned char)ch] == alphabet_base); // Invalid translation character
 				_ord[(unsigned char)ch] = cp;
 				if (flags & BaseX::ignore_case) {
 					if (ch >= 'A' && ch <='Z') {
@@ -238,24 +240,24 @@ public:
 	}
 
 	template <typename Result = std::string, typename T, std::size_t N, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
-	void encode(Result& result, T (&s)[N]) const {
+	void encode(Result& result, T (&&s)[N]) const {
 		encode(result, s, N - 1);
 	}
 
 	template <typename Result = std::string, typename T, std::size_t N, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
-	Result encode(T (&s)[N]) const {
+	Result encode(T (&&s)[N]) const {
 		Result result;
 		encode(result, s, N - 1);
 		return result;
 	}
 
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
-	void encode(Result& result, const std::string& binary) const {
+	void encode(Result& result, std::string_view binary) const {
 		return encode(result, binary.data(), binary.size());
 	}
 
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
-	Result encode(const std::string& binary) const {
+	Result encode(std::string_view binary) const {
 		Result result;
 		encode(result, binary.data(), binary.size());
 		return result;
@@ -352,24 +354,24 @@ public:
 	}
 
 	template <typename Result = std::string, typename T, std::size_t N, typename = std::enable_if_t<uinteger_t::is_result<Result>::value or std::is_integral<Result>::value>>
-	void decode(Result& result, T (&s)[N]) const {
+	void decode(Result& result, T (&&s)[N]) const {
 		decode(result, s, N - 1);
 	}
 
 	template <typename Result = std::string, typename T, std::size_t N, typename = std::enable_if_t<uinteger_t::is_result<Result>::value or std::is_integral<Result>::value>>
-	Result decode(T (&s)[N]) const {
+	Result decode(T (&&s)[N]) const {
 		Result result;
 		decode(result, s, N - 1);
 		return result;
 	}
 
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value or std::is_integral<Result>::value>>
-	void decode(Result& result, const std::string& encoded) const {
+	void decode(Result& result, std::string_view encoded) const {
 		decode(result, encoded.data(), encoded.size());
 	}
 
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value or std::is_integral<Result>::value>>
-	Result decode(const std::string& encoded) const {
+	Result decode(std::string_view encoded) const {
 		Result result;
 		decode(result, encoded.data(), encoded.size());
 		return result;
@@ -398,11 +400,11 @@ public:
 	}
 
 	template <typename T, std::size_t N>
-	bool is_valid(T (&s)[N]) const {
+	bool is_valid(T (&&s)[N]) const {
 		return is_valid(s, N - 1);
 	}
 
-	bool is_valid(const std::string& encoded) const {
+	bool is_valid(std::string_view encoded) const {
 		return is_valid(encoded.data(), encoded.size());
 	}
 };
@@ -546,7 +548,7 @@ struct Base59 {
 		return encoder;
 	}
 	static const BaseX& dubaluchk() {
-		static constexpr BaseX encoder(BaseX::with_checksum, "zy9MalDxwpKLdvW2AtmscgbYUq6jhP7E53TiXenZRkVCrouBH4GSQf8FNJO", "", "", "-l1IO0");
+		static constexpr BaseX encoder(BaseX::with_checksum, "zGLUAC2EwdDRrkWBatmscxyYlg6jhP7K53TibenZpMVuvoO9H4XSQq8FfJN", "", "", "~l1IO0");
 		return encoder;
 	}
 };
@@ -595,6 +597,10 @@ struct Base64 {
 	}
 	static const BaseX& rfc4648url() {
 		static constexpr BaseX encoder(BaseX::block_padding, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "", "====", "\n\r");
+		return encoder;
+	}
+	static const BaseX& rfc4648url_unpadded() {
+		static constexpr BaseX encoder(BaseX::block_padding, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", "", "", "\n\r");
 		return encoder;
 	}
 };

@@ -1,97 +1,227 @@
-﻿# base-x [![License][license-img]][license-url] [![GitHub Stars][stars-img]][stars-url] [![GitHub Forks][forks-img]][forks-url] [![GitHub Watchers][watchers-img]][watchers-url] [![Tweet][tweet-img]][tweet-url]
+# base-x
 
-[![Build Status](https://travis-ci.org/Kronuz/base-x.svg?branch=master)](https://travis-ci.org/Kronuz/base-x)
+BaseX encoder / decoder for C++.
 
+## What it is
 
-### BaseX encoder / decoder for C++
+`base-x` is a header-only library that encodes and decodes binary data in an
+arbitrary base, given the alphabet for that base. It treats the input as one big
+unsigned integer and rewrites it in the target base, so it works for base2 all
+the way up to base66 and anything in between. It ships ready-made alphabets for
+the common ones (base16, base32, base58, base62, base64 and more), including
+Bitcoin, Ripple, Flickr, Crockford and the RFC 4648 variants.
 
-This is a fast base encoder / decoder of any given alphabet.
+On top of plain base conversion it supports optional check digits and
+checksums, case-insensitive alphabets, character translation (so visually
+ambiguous glyphs decode to the same value), and RFC 4648 style block padding.
 
+It is two headers: `base_x.hh` for the codec and the alphabet catalog, and
+`uinteger_t.hh` for the arbitrary-precision unsigned integer it builds on.
 
-#### Example
+## When to use it / when not
 
-``` cpp
-// example.cc
-// g++ -std=c++14 -o example example.cc
+Use it when you need compact, human-friendly text for binary blobs (IDs, hashes,
+keys) and you care about the exact alphabet. base58 and base62 avoid the
+padding, `+`, `/` and look-alike characters that make base64 awkward in URLs and
+when read aloud. The check-digit and checksum modes catch transcription errors,
+which is handy for short identifiers people type or copy.
 
+Skip it if you need standard, byte-aligned hex or base64 output. Because it
+encodes the whole input as a single integer (long division, not fixed-size
+blocks), the default alphabets are not interchangeable with `xxd` or a stock
+base64 library. The RFC 4648 presets (`Base16::rfc4648()`, `Base32::rfc4648()`,
+`Base64::rfc4648()`) do produce standard, padded output through the block-padding
+path, but the plain `base16()` / `base64()` alphabets do not. If you want
+streaming over data that does not fit in memory, this is the wrong tool: it
+materializes the whole value at once.
+
+## Install
+
+Header-only. Copy `base_x.hh` and `uinteger_t.hh` somewhere on your include path
+and include the codec:
+
+```cpp
+#include "base_x.hh"
+```
+
+`base_x.hh` includes `uinteger_t.hh`, so keep the two side by side. C++17 is
+required.
+
+With CMake there's an `INTERFACE` target (`base_x`) you can link against. To pull
+it in via `FetchContent`:
+
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+  base_x
+  GIT_REPOSITORY https://github.com/Kronuz/base-x.git
+  GIT_TAG        master
+)
+FetchContent_MakeAvailable(base_x)
+
+target_link_libraries(your_target PRIVATE base_x)
+```
+
+The `base_x` target adds the include directory and requests `cxx_std_17`.
+
+## Usage
+
+```cpp
 #include <iostream>
 #include "base_x.hh"
 
 int main() {
     auto encoded = Base58::base58().encode("Hello world!");
-
     std::cout << encoded << std::endl;
-    // => 1LDlk6QWOejX6rPrJ
 
+    auto decoded = Base58::base58().decode(encoded);
+    std::cout << decoded << std::endl;  // => Hello world!
     return 0;
 }
 ```
 
+Each alphabet is a static factory that returns a shared `const BaseX&`. Pick the
+one you want and call `encode` / `decode` on it:
 
-#### Compilation
+```cpp
+Base62::base62().encode("Hello world!");   // => "T8dgcjRGuYUueWht"
+Base16::base16().encode("ABC");            // => "414243"
+Base32::crockford().encode(519571);        // => "FVCK"
+```
 
-* g++ and clang++ are supported.
-* C++14 is required.
+The check variants append a check character that `decode` verifies and
+`is_valid` can test without decoding:
 
+```cpp
+auto s = Base62::base62chk().encode("Hello world!");  // => "T8dgcjRGuYUueWhtE"
+Base62::base62chk().is_valid(s);                       // => true
+Base62::base62chk().decode(s);                         // => "Hello world!"
+```
 
-### Alphabets
+## Alphabets
 
-See below for a list of commonly recognized alphabets, and their respective base.
+A selection of the built-in factories. Each lives on a struct named for its base
+(`Base58`, `Base62`, etc.) and most have a `*chk()` checksum twin.
 
-Base | Factory             | Alphabet
------|---------------------|-------------
-   2 | base2::base2()      | `01`
-   2 | base8::base8()      | `01234567`
-  11 | bas11::bas11()      | `0123456789a`
-  16 | base16::base16()    | `0123456789abcdef`
-  32 | base32::base32()    | `0123456789ABCDEFGHJKMNPQRSTVWXYZ`
-  36 | base36::base36()    | `0123456789abcdefghijklmnopqrstuvwxyz`
-  58 | base58::base58()    | `123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz`
-  58 | base58::bitcoin()   | `123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz`
-  58 | base58::gmp()       | `0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv`
-  58 | base58::ripple()    | `rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz`
-  58 | base58::flickr()    | `123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ`
-  62 | base62::base62()    | `0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz`
-  62 | base62::inverted()  | `0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ`
-  64 | base64::base64()    | `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/`
-  64 | base64::urlsafe()   | `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_`
-  66 | base66::base66()    | `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~`
+| Base | Factory                | Alphabet
+|------|------------------------|----------
+|    2 | `Base2::base2()`       | `01`
+|    8 | `Base8::base8()`       | `01234567`
+|   16 | `Base16::base16()`     | `0123456789abcdef`
+|   16 | `Base16::rfc4648()`    | `0123456789ABCDEF`
+|   32 | `Base32::base32()`     | `0123456789abcdefghijklmnopqrstuv`
+|   32 | `Base32::crockford()`  | `0123456789ABCDEFGHJKMNPQRSTVWXYZ`
+|   32 | `Base32::rfc4648()`    | `ABCDEFGHIJKLMNOPQRSTUVWXYZ234567`
+|   36 | `Base36::base36()`     | `0123456789abcdefghijklmnopqrstuvwxyz`
+|   58 | `Base58::base58()`     | `0123456789ABCDEF...uv` (GMP order)
+|   58 | `Base58::bitcoin()`    | `123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz`
+|   58 | `Base58::ripple()`     | `rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz`
+|   58 | `Base58::flickr()`     | `123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ`
+|   59 | `Base59::base59()`     | `23456789abcdef...XYZ` (ambiguous chars translated)
+|   62 | `Base62::base62()`     | `0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz`
+|   62 | `Base62::inverted()`   | `0123456789abcdef...XYZ` (lowercase first)
+|   64 | `Base64::base64()`     | `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/`
+|   64 | `Base64::url()`        | `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_`
+|   64 | `Base64::rfc4648()`    | base64 with `=` block padding
+|   66 | `Base66::base66()`     | `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~`
 
+There are also `base11`, `base16chk`, `Base58::dubaluchk()`,
+`Base64::rfc4648url()` / `rfc4648url_unpadded()`, and check twins for most of the
+above. See the factory structs at the bottom of `base_x.hh` for the full list.
 
-### How it works
+## API reference
 
-It encodes octet arrays by doing long divisions on all significant digits in the
-array, creating a representation of that number in the new base.
+Everything hangs off one class:
 
-**If you need standard hex encoding, or base64 encoding, this module is NOT
-appropriate.**
+```cpp
+class BaseX;
+```
 
+You rarely construct it directly. The factories build `constexpr BaseX`
+encoders for you. The flags an alphabet can be built with:
 
-## Author
-[**German Mendez Bravo (Kronuz)**](https://kronuz.io/)
+```cpp
+BaseX::ignore_case     // decode is case-insensitive
+BaseX::with_checksum   // append/verify a trailing checksum character
+BaseX::with_check      // append/verify a trailing check character
+BaseX::block_padding   // RFC 4648 style fixed-block padding
+```
 
-[![Follow on GitHub][github-follow-img]][github-follow-url]
-[![Follow on Twitter][twitter-follow-img]][twitter-follow-url]
+### encode
 
+```cpp
+// All overloads default Result to std::string. The in-place forms write into
+// an existing result; the value forms return a fresh one.
+template <typename Result = std::string> Result encode(const uinteger_t& num) const;
+template <typename Result = std::string> Result encode(const unsigned char* data, std::size_t size) const;
+template <typename Result = std::string> Result encode(const char* data, std::size_t size) const;
+template <typename Result = std::string> Result encode(std::string_view binary) const;
+template <typename Result, typename T, std::size_t N> Result encode(T (&&s)[N]) const;  // string literal
+```
+
+`encode` takes binary input (a `uinteger_t`, a buffer, a `std::string_view`, or
+a string literal) and returns its text representation in this alphabet. Passing
+an integer literal encodes that integer.
+
+### decode
+
+```cpp
+template <typename Result = std::string> Result decode(const char* encoded, std::size_t size) const;
+template <typename Result = std::string> Result decode(std::string_view encoded) const;
+template <typename Result, typename T, std::size_t N> Result decode(T (&&s)[N]) const;
+void decode(uinteger_t& result, const char* encoded, std::size_t size) const;
+```
+
+`decode` reverses `encode`. With `Result = std::string` (the default) it returns
+the original bytes; with an integral `Result` it returns the decoded integer. It
+throws `std::invalid_argument` on an invalid character, a failed check digit, or
+a failed checksum.
+
+### is_valid
+
+```cpp
+bool is_valid(const char* encoded, std::size_t size) const;
+bool is_valid(std::string_view encoded) const;
+template <typename T, std::size_t N> bool is_valid(T (&&s)[N]) const;
+```
+
+`is_valid` reports whether a string only contains alphabet characters and, for
+checksum alphabets, whether the checksum holds. It never throws.
+
+## Build & test
+
+Header-only, so there's nothing to compile for use. To run the smoke test:
+
+```sh
+c++ -std=c++17 -I. test/test.cc -o /tmp/basex_test && /tmp/basex_test
+# or with CMake:
+cmake -B build && cmake --build build && ctest --test-dir build
+```
+
+The test prints `base-x OK: ...` and exits 0 on success. It uses `assert`, so
+build without `NDEBUG`.
+
+## Notes & caveats
+
+- The default alphabets are not byte-aligned standards. `Base16::base16()` and
+  `Base64::base64()` are not the same as stock hex or base64; they encode the
+  whole input as one integer. Use the `rfc4648*` presets when you need standard,
+  padded output.
+- Because encoding goes through `uinteger_t`, a leading zero byte does not round
+  into a leading alphabet character the way Bitcoin base58check expects. These
+  alphabets encode the numeric value, not a fixed-width byte string.
+- `decode` and the checked encoders throw `std::invalid_argument`. If you cannot
+  afford exceptions on bad input, gate with `is_valid` first.
+- `ignore_case` only affects decoding; encoding always emits the alphabet's own
+  casing.
+
+## Provenance
+
+Extracted from [Xapiand](https://github.com/Kronuz/Xapiand), where the same
+`base_x.hh` and `uinteger_t.hh` are vendored under `src/`. That copy is the more
+actively maintained one; this repo tracks it.
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
-
-Copyright (c) 2017 German Mendez Bravo (Kronuz) @ german dot mb at gmail.com
-
-
-[license-url]: https://github.com/Kronuz/base-x/blob/master/LICENSE
-[license-img]: https://img.shields.io/github/license/Kronuz/base-x.svg
-[stars-url]: https://github.com/Kronuz/base-x/stargazers
-[stars-img]: https://img.shields.io/github/stars/Kronuz/base-x.svg?style=social&amp;label=Stars
-[forks-url]: https://github.com/Kronuz/base-x/network/members
-[forks-img]: https://img.shields.io/github/forks/Kronuz/base-x.svg?style=social&amp;label=Forks
-[watchers-url]: https://github.com/Kronuz/base-x/watchers
-[watchers-img]: https://img.shields.io/github/watchers/Kronuz/base-x.svg?style=social&amp;label=Watchers
-[tweet-img]: https://img.shields.io/twitter/url/https/github.com/Kronuz/base-x.svg?style=social
-[tweet-url]: https://twitter.com/intent/tweet?text=Base-X+encoding%2Fdecoding+for+modern+C%2B%2B+by+%40germbravo:&url=https%3A%2F%2Fgithub.com%2FKronuz%2Fbase-x
-[github-follow-url]: https://github.com/Kronuz
-[github-follow-img]: https://img.shields.io/github/followers/Kronuz.svg?style=social&label=Follow
-[twitter-follow-url]: https://twitter.com/intent/follow?screen_name=germbravo
-[twitter-follow-img]: https://img.shields.io/twitter/follow/germbravo.svg?style=social&label=Follow
+MIT. Copyright (c) 2017,2019 German Mendez Bravo (Kronuz). `uinteger_t.hh` also
+carries Copyright (c) 2013-2017 Jason Lee. See [LICENSE](LICENSE).

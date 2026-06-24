@@ -1,4 +1,6 @@
 .DS_Store
-test
+build/
 *.o
 *.dSYM
+test/test
+test/test_*

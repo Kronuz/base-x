@@ -2,7 +2,7 @@
 uinteger_t.hh
 An arbitrary precision unsigned integer type for C++
 
-Copyright (c) 2017 German Mendez Bravo (Kronuz) @ german dot mb at gmail.com
+Copyright (c) 2017,2019 German Mendez Bravo (Kronuz) @ german dot mb at gmail.com
 Copyright (c) 2013 - 2017 Jason Lee @ calccrypto at gmail.com
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -38,9 +38,9 @@ to header-only and extended to arbitrary bit length.
 #ifndef __uint_t__
 #define __uint_t__
 
+#include <cassert>
 #include <vector>
 #include <string>
-#include <cassert>
 #include <utility>
 #include <cstring>
 #include <cstdint>
@@ -49,8 +49,6 @@ to header-only and extended to arbitrary bit length.
 #include <stdexcept>
 #include <functional>
 #include <type_traits>
-
-#define ASSERT assert
 
 // Compatibility inlines
 #ifndef __has_builtin         // Optional of course
@@ -216,7 +214,7 @@ public:
 			sz -= min;
 		}
 		if (sz) {
-			ASSERT(_begin == 0); // _begin should be 0 in here
+			assert(_begin == 0); // _begin should be 0 in here
 			// If there's still more room needed, we grow the vector:
 			// Ex.: grow using prepend(3, y)
 			//    sz = 3
@@ -1234,14 +1232,14 @@ public:
 		if (shift) {
 			digit shifted = 0;
 			for (; lhs_rit != lhs_rit_e; ++lhs_rit, ++rit) {
-				ASSERT(rit != rit_e); (void)(rit_e);
+				assert(rit != rit_e); (void)(rit_e);
 				auto v = (*lhs_rit >> shift) | shifted;
 				shifted = *lhs_rit << (_digit_bits - shift);
 				*rit = v;
 			}
 		} else {
 			for (; lhs_rit != lhs_rit_e; ++lhs_rit, ++rit) {
-				ASSERT(rit != rit_e); (void)(rit_e);
+				assert(rit != rit_e); (void)(rit_e);
 				*rit = *lhs_rit;
 			}
 		}
@@ -1526,7 +1524,7 @@ public:
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
-		ASSERT(rhs_sz == 1); (void)(rhs_sz);
+		assert(rhs_sz == 1); (void)(rhs_sz);
 		auto n = rhs.front();
 
 		uinteger_t tmp;
@@ -1619,8 +1617,8 @@ public:
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
-		ASSERT(lhs_sz > cutoff);
-		ASSERT(2 * lhs_sz <= rhs_sz);
+		assert(lhs_sz > cutoff);
+		assert(2 * lhs_sz <= rhs_sz);
 
 		auto rhs_begin = rhs._begin;
 		std::size_t shift = 0;
@@ -1752,7 +1750,7 @@ public:
 		auto lhs_sz = lhs.size();
 		auto rhs_sz = rhs.size();
 
-		ASSERT(rhs_sz == 1); (void)(rhs_sz);
+		assert(rhs_sz == 1); (void)(rhs_sz);
 		auto n = rhs.front();
 
 		auto rit_lhs = lhs.rbegin();
@@ -1781,7 +1779,7 @@ public:
 
 		auto v_size = v.size();
 		auto w_size = w.size();
-		ASSERT(v_size >= w_size && w_size >= 2);
+		assert(v_size >= w_size && w_size >= 2);
 
 		// D1. normalize: shift rhs left so that its top digit is >= 63 bits.
 		// shift lhs left by the same amount. Results go into w and v.
@@ -1993,7 +1991,7 @@ public:
 	}
 
 	template <typename T, std::size_t N>
-	explicit uinteger_t(T (&s)[N], int base=10) :
+	explicit uinteger_t(T (&&s)[N], int base=10) :
 		uinteger_t(s, N - 1, base) { }
 
 	explicit uinteger_t(const unsigned char* bytes, std::size_t sz, int base) :
