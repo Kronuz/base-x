@@ -223,6 +223,24 @@ build without `NDEBUG`.
 - `ignore_case` only affects decoding; encoding always emits the alphabet's own
   casing.
 
+## Examples
+
+[`examples/demo.cc`](examples/demo.cc) is a runnable tour. A top-level CMake build
+produces it next to the test:
+
+```sh
+cmake -B build && cmake --build build && ./build/base_x_demo
+```
+
+It encodes one short payload across base16/32/58/62/64 and decodes each back so
+you can watch the same bytes get rewritten in a different base per row; lines up
+the four base58 variants (GMP, bitcoin, ripple, flickr) to show they are the same
+number in different look-alike-safe glyphs; encodes an integer literal (the
+classic `FVCK` Crockford vector); contrasts the plain `base64()` integer encoding
+with the standard, `=`-padded `rfc4648()` output for the same byte; flips a
+character to show a check-digit alphabet catch it via `is_valid` without throwing;
+and round-trips a raw 16-byte binary blob.
+
 ## Provenance
 
 Extracted from [Xapiand](https://github.com/Kronuz/Xapiand), where `base_x.hh` is

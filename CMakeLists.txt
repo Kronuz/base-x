@@ -9,7 +9,7 @@ project(base_x LANGUAGES CXX)
 include(FetchContent)
 FetchContent_Declare(uinteger_t
   GIT_REPOSITORY https://github.com/Kronuz/uinteger_t.git
-  GIT_TAG        a455f3317967d2c91e0d5c2064e47441dc04dcfb)
+  GIT_TAG        fd7e5f0c8d6a9323db46929378777ef19281b287)  # builds under modern libc++
 FetchContent_MakeAvailable(uinteger_t)
 
 add_library(base_x INTERFACE)
@@ -25,4 +25,8 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   add_executable(base_x_test test/test.cc)
   target_link_libraries(base_x_test PRIVATE base_x)
   add_test(NAME base_x COMMAND base_x_test)
+
+  # A runnable tour of the library (not a test): build & run ./build/base_x_demo
+  add_executable(base_x_demo examples/demo.cc)
+  target_link_libraries(base_x_demo PRIVATE base_x)
 endif()
