@@ -346,6 +346,17 @@ public:
 		result = num.template str<Result>(256);
 	}
 
+	// Decode straight into a native integer Result, reversing the integer encode.
+	// is_result and is_integral are disjoint, so this never collides with the
+	// string-like overload above. Without it the value-returning decode<Integral>
+	// below would have no reference-form to delegate to (it failed to compile).
+	template <typename Result, typename = typename std::enable_if_t<std::is_integral<Result>::value>, typename = void>
+	void decode(Result& result, const char* encoded, std::size_t encoded_size) const {
+		uinteger_t num;
+		decode(num, encoded, encoded_size);
+		result = static_cast<Result>(num);
+	}
+
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value or std::is_integral<Result>::value>>
 	Result decode(const char* encoded, std::size_t encoded_size) const {
 		Result result;

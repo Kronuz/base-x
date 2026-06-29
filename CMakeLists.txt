@@ -3,13 +3,13 @@ project(base_x LANGUAGES CXX)
 
 # base_x.hh includes "uinteger_t.hh" (it uses arbitrary-precision integers for
 # base conversion). Depend on the uinteger_t library directly instead of
-# vendoring a copy. Pinned to a commit SHA for reproducible builds; for
+# vendoring a copy. Tracks the uinteger_t default branch (tip); for
 # offline/hermetic builds set FETCHCONTENT_SOURCE_DIR_UINTEGER_T to a local
 # checkout.
 include(FetchContent)
 FetchContent_Declare(uinteger_t
   GIT_REPOSITORY https://github.com/Kronuz/uinteger_t.git
-  GIT_TAG        fd7e5f0c8d6a9323db46929378777ef19281b287)  # builds under modern libc++
+  GIT_TAG        master)  # track tip
 FetchContent_MakeAvailable(uinteger_t)
 
 add_library(base_x INTERFACE)
