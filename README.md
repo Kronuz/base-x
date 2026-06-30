@@ -1,5 +1,7 @@
 # base-x
 
+![constexpr](https://img.shields.io/badge/constexpr-compile--time-blue)
+
 BaseX encoder / decoder for C++.
 
 ## What it is
