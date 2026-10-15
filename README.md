@@ -1,5 +1,7 @@
 # base-x
 
+[![CI](https://github.com/Kronuz/base-x/actions/workflows/ci.yml/badge.svg)](https://github.com/Kronuz/base-x/actions/workflows/ci.yml)
+
 ![constexpr](https://img.shields.io/badge/constexpr-compile--time-blue)
 
 BaseX encoder / decoder for C++.
