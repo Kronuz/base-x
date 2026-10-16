@@ -1,0 +1,21 @@
+# base-x: bytes as one big integer, rewritten in any alphabet's base.
+# Render: d2 --layout elk --sketch --theme 302 docs/base-x.d2 docs/base-x.svg
+direction: right
+
+input: '"Hello world!"' {
+  label: "bytes\n\"Hello world!\""
+}
+int: uinteger_t {
+  label: "one big unsigned integer\n(uinteger_t)"
+}
+digits: base 62 {
+  label: "digits in base N\n(long division)"
+}
+out: '"T8dgcjRGuYUueWht"' {
+  label: "text in the alphabet\n+ optional check char"
+}
+
+input -> int
+int -> digits
+digits -> out: "Base62::base62()"
+out -> input: "decode" {style.stroke-dash: 3}

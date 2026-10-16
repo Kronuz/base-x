@@ -16,10 +16,14 @@ Notes for agents and contributors working in this repo.
 The library depends on [uinteger_t](https://github.com/Kronuz/uinteger_t)
 (`base_x.hh` does `#include "uinteger_t.hh"`); it is fetched by CMake, not
 vendored here.
-- `README.md` — usage, alphabet catalog, API reference.
+- `README.md` — what it is, install, quick start.
+- `docs/API.md` — the API reference, the alphabet catalog, and caveats;
+  `docs/base-x.d2` is the README diagram's source.
+- `CMakeLists.txt` — the `base_x` target (alias `base_x::base_x`).
 - `ARCHITECTURE.md` — encoding scheme, the two encode paths, check/checksum/
   padding, complexity.
-- `tests/` — the legacy googletest suite (`tests/tests.cc`) and its Makefile,
+- `tests/` — the legacy googletest suite (`tests/testcases/tests.cc`, not built
+  by CMake or CI) and its Makefile,
   kept for the broader vector coverage. The CMake/`test/` smoke test is the one
   CI-light path that needs no external dependency.
 

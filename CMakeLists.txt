@@ -13,6 +13,7 @@ FetchContent_Declare(uinteger_t
 FetchContent_MakeAvailable(uinteger_t)
 
 add_library(base_x INTERFACE)
+add_library(base_x::base_x ALIAS base_x)
 target_include_directories(base_x INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(base_x INTERFACE cxx_std_17)
 # Propagate the dependency so anything linking base_x can resolve "uinteger_t.hh".

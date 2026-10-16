@@ -22,8 +22,7 @@ standard hex or base64.
 
 ## Alphabet tables
 
-A `BaseX` carries two 256-entry lookup tables built at construction
-(`base_x.hh:38`): `_chr` maps a digit (0..base-1) to its character, and `_ord`
+A `BaseX` carries two 256-entry lookup tables built at construction: `_chr` maps a digit (0..base-1) to its character, and `_ord`
 maps a byte back to its digit, with out-of-alphabet bytes set to `alphabet_base`
 (an out-of-range sentinel). The constructor is `constexpr`, so every factory
 encoder is built at compile time.
@@ -35,30 +34,27 @@ decode to the same digit. Crockford base32, for example, maps `0`, `O` and `o`
 to the same value and ignores `-`. When `ignore_case` is set, the constructor
 also wires the opposite-case letter to the same digit.
 
-A handful of constants are derived once at construction (`base_x.hh:44`):
+A handful of constants are derived once at construction:
 `alphabet_base` is the base, `alphabet_base_bits` is nonzero only when the base
 is a power of two, `alphabet_base_mask` is `alphabet_base - 1`, and `block_size`
 is set only when `block_padding` is requested.
 
 ## Two encoding paths
 
-`encode(Result&, const uinteger_t&)` (`base_x.hh:134`) branches on whether the
+`encode(Result&, const uinteger_t&)` branches on whether the
 base is a power of two.
 
-- Power-of-two bases (`alphabet_base_bits != 0`) take the fast path
-  (`base_x.hh:149`). The value's words are walked and sliced into
+- Power-of-two bases (`alphabet_base_bits != 0`) take the fast path. The value's words are walked and sliced into
   `alphabet_base_bits`-wide chunks with shifts and a mask
   (`(v >> shift) & alphabet_base_mask`), no division at all. This is what makes
   base16/base32/base64 cheap. Leftover high zero digits are trimmed afterward
   with a `find_if` from the back.
 - Non-power-of-two bases (base58, base62, base59, ...) take the long-division
-  path (`base_x.hh:178`). It repeatedly calls `quotient.divmod(base)` and pushes
+  path. It repeatedly calls `quotient.divmod(base)` and pushes
   the remainder digit until the quotient is zero. This is the classic base
   conversion and the more expensive of the two.
 
-Both paths push digits least-significant first, then `std::reverse` the result
-(`base_x.hh:188`). The output buffer is reserved up front to `num_sz * base_size`
-(`base_x.hh:148`) so the pushes don't reallocate.
+Both paths push digits least-significant first, then `std::reverse` the result. The output buffer is reserved up front to `num_sz * base_size` so the pushes don't reallocate.
 
 ## Padding, check, and checksum
 
@@ -66,16 +62,15 @@ Three optional features hang off the flags, applied after the core digits are
 produced:
 
 - `block_padding` (RFC 4648 style). When set, `block_size` is nonzero and the
-  encoder left-shifts the value so its bit length lands on a block boundary
-  (`base_x.hh:138`), then appends the padding character so the text length is a
-  multiple of `padding_size` (`base_x.hh:189`). Decoding undoes the shift with
+  encoder left-shifts the value so its bit length lands on a block boundary, then appends the padding character so the text length is a
+  multiple of `padding_size`. Decoding undoes the shift with
   `result >>= (bp & 7)` and stops at the first padding character. This is the
   path the `rfc4648*` presets use to match the standard.
 - `with_check` appends a single check character: the value mod the full table
-  size, drawn from the alphabet plus the extended set (`base_x.hh:194`). Decoding
+  size, drawn from the alphabet plus the extended set. Decoding
   recomputes it and throws if it disagrees.
 - `with_checksum` appends a checksum character computed from the digit sum and
-  the length (`base_x.hh:199`). Decoding folds the same sum back in and throws if
+  the length. Decoding folds the same sum back in and throws if
   the total is not zero mod the size. `is_valid` performs the same check without
   decoding.
 
@@ -84,7 +79,7 @@ The check and checksum sums are accumulated during the main loop (`sum`,
 
 ## Decoding
 
-`decode(uinteger_t&, const char*, size_t)` (`base_x.hh:265`) mirrors encoding. It
+`decode(uinteger_t&, const char*, size_t)` mirrors encoding. It
 first subtracts the trailing check/checksum characters from the length, then
 walks the remaining characters. Power-of-two bases fold each digit in with
 `(result << alphabet_base_bits) | d`; other bases use `result * base + d`.
