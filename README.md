@@ -100,4 +100,4 @@ pass on every platform.
 
 ## 📄 License
 
-MIT, Copyright (c) 2017 Germán Méndez Bravo. See [LICENSE](LICENSE).
+MIT, Copyright (c) 2017-2026 Germán Méndez Bravo. See [LICENSE](LICENSE).
