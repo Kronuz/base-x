@@ -28,6 +28,7 @@ THE SOFTWARE.
 
 #include <cassert>          // for assert
 #include <algorithm>        // for std::find_if, std::reverse
+#include <memory>           // for std::unique_ptr
 #include <stdexcept>        // for std::invalid_argument
 #include <string>           // for std::string
 #include <string_view>      // for std::string_view
@@ -42,10 +43,7 @@ class BaseX {
 
 	const int size;
 	const int alphabet_base;
-	const unsigned base_size;
-	const unsigned alphabet_base_bits;
 	const unsigned block_size;
-	const uinteger_t::digit alphabet_base_mask;
 	const unsigned padding_size;
 	const char padding;
 	const int flags;
@@ -70,10 +68,7 @@ public:
 		_ord(),
 		size(alphabet_size1 - 1 + extended_size1 - 1),
 		alphabet_base(alphabet_size1 - 1),
-		base_size(uinteger_t::base_size(alphabet_base)),
-		alphabet_base_bits(uinteger_t::base_bits(alphabet_base)),
-		block_size((flgs & BaseX::block_padding) ? alphabet_base_bits : 0),
-		alphabet_base_mask(alphabet_base - 1),
+		block_size((flgs & BaseX::block_padding) ? uinteger_t::base_bits(alphabet_base) : 0),
 		padding_size(padding_size1 - 1),
 		padding(padding_size ? padding_string[0] : '\0'),
 		flags(flgs)
@@ -142,54 +137,15 @@ public:
 			}
 		}
 		const uinteger_t& num = bp ? quotient : input;
-		auto num_sz = num.size();
-		if (num_sz) {
+		if (num) {
 			int sum = 0;
-			result.reserve(num_sz * base_size);
-			if (alphabet_base_bits) {
-				std::size_t shift = 0;
-				auto ptr = reinterpret_cast<const uinteger_t::half_digit*>(num.data());
-				uinteger_t::digit v = *ptr++;
-				v <<= uinteger_t::half_digit_bits;
-				for (auto i = num_sz * 2 - 1; i; --i) {
-					v >>= uinteger_t::half_digit_bits;
-					v |= (static_cast<uinteger_t::digit>(*ptr++) << uinteger_t::half_digit_bits);
-					do {
-						auto d = static_cast<int>((v >> shift) & alphabet_base_mask);
-						result.push_back(chr(d));
-						shift += alphabet_base_bits;
-						sum += d;
-					} while (shift <= uinteger_t::half_digit_bits);
-					shift -= uinteger_t::half_digit_bits;
-				}
-				v >>= (shift + uinteger_t::half_digit_bits);
-				while (v) {
-					auto d = static_cast<int>(v & alphabet_base_mask);
-					result.push_back(chr(d));
-					v >>= alphabet_base_bits;
-					sum += d;
-				}
-				auto s = chr(0);
-				auto rit_f = std::find_if(result.rbegin(), result.rend(), [s](const char& c) { return c != s; });
-				result.resize(result.rend() - rit_f); // shrink
-			} else {
-				unsigned chunk_digits;
-				const uinteger_t::small_divisor chunk(uinteger_t::base_chunk(alphabet_base, chunk_digits));
-				if (!bp) {
-					quotient = num;
-				}
-				do {
-					auto r = quotient.divmod_small(chunk);
-					auto n = quotient ? chunk_digits : 0u;
-					do {
-						auto d = static_cast<int>(r % alphabet_base);
-						r /= alphabet_base;
-						result.push_back(chr(d));
-						sum += d;
-					} while (n ? --n : r);
-				} while (quotient);
+			const auto first = result.size();
+			num.digits(result, alphabet_base);
+			for (auto i = first; i < result.size(); ++i) {
+				const auto d = static_cast<unsigned char>(result[i]);
+				result[i] = chr(d);
+				sum += d;
 			}
-			std::reverse(result.begin(), result.end());
 			if (padding_size) {
 				Result p;
 				p.resize((padding_size - (result.size() % padding_size)) % padding_size, padding);
@@ -268,7 +224,6 @@ public:
 	}
 
 	void decode(uinteger_t& result, const char* encoded, std::size_t encoded_size) const {
-		result = 0;
 		int sum = 0;
 		int sumsz = 0;
 		int direction = 1;
@@ -279,50 +234,29 @@ public:
 
 		int bp = 0;
 
-		if (alphabet_base_bits) {
-			for (; sz; --sz, encoded += direction) {
-				auto c = *encoded;
-				if (c == padding) break;
-				auto d = ord(static_cast<int>(c));
-				if (d < 0) continue; // ignored character
-				if (d >= alphabet_base) {
-					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, c) + "' at " + std::to_string(encoded_size - sz));
-				}
-				sum += d;
-				++sumsz;
-				result = (result << alphabet_base_bits) | d;
-				bp += block_size;
-			}
-		} else {
-			unsigned chunk_digits;
-			const auto chunk_max = uinteger_t::base_chunk(alphabet_base, chunk_digits);
-			uinteger_t::digit chunk = 1;
-			uinteger_t::digit acc = 0;
-			unsigned count = 0;
-			for (; sz; --sz, encoded += direction) {
-				auto c = *encoded;
-				if (c == padding) break;
-				auto d = ord(static_cast<int>(c));
-				if (d < 0) continue; // ignored character
-				if (d >= alphabet_base) {
-					throw std::invalid_argument("Error: Invalid character: '" + std::string(1, c) + "' at " + std::to_string(encoded_size - sz));
-				}
-				sum += d;
-				++sumsz;
-				acc = acc * alphabet_base + d;
-				chunk *= alphabet_base;
-				if (++count == chunk_digits) {
-					result.mul_add_small(chunk_max, acc);
-					chunk = 1;
-					acc = 0;
-					count = 0;
-				}
-				bp += block_size;
-			}
-			if (count) {
-				result.mul_add_small(chunk, acc);
-			}
+		// Collect the digits (skipping ignored characters), then convert them at once.
+		unsigned char stack_digits[256];
+		std::unique_ptr<unsigned char[]> heap_digits;
+		unsigned char* digits = stack_digits;
+		if (sz > sizeof(stack_digits)) {
+			heap_digits.reset(new unsigned char[sz]);
+			digits = heap_digits.get();
 		}
+		std::size_t count = 0;
+		for (; sz; --sz, encoded += direction) {
+			auto c = *encoded;
+			if (c == padding) break;
+			auto d = ord(static_cast<int>(c));
+			if (d < 0) continue; // ignored character
+			if (d >= alphabet_base) {
+				throw std::invalid_argument("Error: Invalid character: '" + std::string(1, c) + "' at " + std::to_string(encoded_size - sz));
+			}
+			sum += d;
+			++sumsz;
+			digits[count++] = static_cast<unsigned char>(d);
+			bp += block_size;
+		}
+		result = uinteger_t::from_digits(digits, count, alphabet_base);
 
 		for (; sz && *encoded == padding; --sz, ++encoded);
 
