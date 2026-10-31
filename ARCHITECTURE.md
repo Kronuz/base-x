@@ -2,16 +2,17 @@
 
 `base-x` is two headers. `base_x.hh` holds the `BaseX` codec and the alphabet
 factory structs; `uinteger_t.hh` holds the arbitrary-precision unsigned integer
-the codec runs on. This document covers the encoding scheme, the two encoding
-paths, the optional check/checksum/padding features, and the complexity.
+the codec runs on. This document covers the encoding scheme, how encode and decode
+use the integer's digit API, the optional check/checksum/padding features, and the
+complexity.
 
 ## The core idea
 
 Encoding treats the whole input as one big unsigned integer and rewrites it in
 the target base. `encode` converts its argument to a `uinteger_t` (base 256 over
-the input bytes) and then repeatedly extracts digits in the alphabet's base,
+the input bytes) and then asks it for its digits in the alphabet's base,
 mapping each digit to a character via the alphabet table. Decoding runs the
-reverse: it folds each character's ordinal back into a `uinteger_t`, then renders
+reverse: it maps each character to its digit, builds a `uinteger_t` from the digits, then renders
 that integer back to base-256 bytes (or to an integral type if asked).
 
 Because the value is a single integer, the scheme is base-agnostic. The same
@@ -35,27 +36,26 @@ to the same value and ignores `-`. When `ignore_case` is set, the constructor
 also wires the opposite-case letter to the same digit.
 
 A handful of constants are derived once at construction:
-`alphabet_base` is the base, `alphabet_base_bits` is nonzero only when the base
-is a power of two, `alphabet_base_mask` is `alphabet_base - 1`, and `block_size`
-is set only when `block_padding` is requested.
+`alphabet_base` is the base, `size` is the alphabet plus the extended set, and
+`block_size` is set only when `block_padding` is requested.
 
-## Two encoding paths
+## Encoding through the digit API
 
-`encode(Result&, const uinteger_t&)` branches on whether the
-base is a power of two.
+`encode(Result&, const uinteger_t&)` asks the value for its digits with
+`uinteger_t::digits(result, alphabet_base)`, which appends them as byte values
+`0..base-1`, most significant first, then maps each through `_chr` in place while it
+adds them up for the checksum. The base-conversion work lives in uinteger_t, so
+base-x gets every speedup there:
 
-- Power-of-two bases (`alphabet_base_bits != 0`) take the fast path. The value's words are walked and sliced into
-  `alphabet_base_bits`-wide chunks with shifts and a mask
-  (`(v >> shift) & alphabet_base_mask`), no division at all. This is what makes
-  base16/base32/base64 cheap. Leftover high zero digits are trimmed afterward
-  with a `find_if` from the back.
-- Non-power-of-two bases (base58, base62, base59, ...) take the long-division
-  path. It repeatedly calls `quotient.divmod(base)` and pushes
-  the remainder digit until the quotient is zero. This is the classic base
-  conversion and the more expensive of the two.
+- Power-of-two bases (base16/base32/base64) are sliced out of the limbs with shifts
+  and a mask, no division. This is what makes them cheap.
+- Other bases (base58, base62, base59, ...) take the chunked long-division path: one
+  `divmod_small` pass by the largest power of the base that fits a limb yields that
+  many digits at once. This is the classic base conversion and the more expensive of
+  the two.
 
-Both paths push digits least-significant first, then `std::reverse` the result. The output buffer is reserved up front to `num_sz * base_size` so the pushes don't reallocate.
-
+The digits are appended to `result`, so the buffer is reserved once inside `digits`
+and not reallocated.
 ## Padding, check, and checksum
 
 Three optional features hang off the flags, applied after the core digits are
@@ -74,18 +74,20 @@ produced:
   the total is not zero mod the size. `is_valid` performs the same check without
   decoding.
 
-The check and checksum sums are accumulated during the main loop (`sum`,
-`sumsz`) so the feature costs little beyond the trailing character.
+The check and checksum sums are accumulated while the digits are mapped (encode) or
+collected (decode) so the feature costs little beyond the trailing character.
 
 ## Decoding
 
 `decode(uinteger_t&, const char*, size_t)` mirrors encoding. It
 first subtracts the trailing check/checksum characters from the length, then
-walks the remaining characters. Power-of-two bases fold each digit in with
-`(result << alphabet_base_bits) | d`; other bases use `result * base + d`.
-Characters whose ordinal is negative are ignored (the translate-to-negative
-trick), and characters at or above `alphabet_base` raise
-`std::invalid_argument`. After the loop it reverses any block-padding shift and
+walks the remaining characters once, collecting each digit's value into a buffer
+(256 bytes on the stack, a heap array for longer input). Characters whose ordinal is
+negative are ignored (the translate-to-negative trick), the padding character stops
+the scan, and characters at or above `alphabet_base` raise
+`std::invalid_argument`. The collected digits go to `uinteger_t::from_digits`, which
+packs bits directly for power-of-two bases (linear) and folds a limb of digits at a
+time for the others. After that it reverses any block-padding shift and
 verifies the check and checksum if present.
 
 The string-returning overloads then call `uinteger_t::str(256)` to turn the
@@ -95,14 +97,13 @@ integer back into bytes; the integral overloads return the integer directly.
 
 Let `n` be the input size in bytes and `m` the output length.
 
-- Power-of-two encode/decode is linear: each word is sliced into fixed-width
-  chunks with shifts and masks, no division.
-- Non-power-of-two encode is dominated by repeated `divmod`, which is the
-  super-linear part. Each `divmod` is linear in the current quotient size, and
-  there are `O(m)` of them, so the conversion is roughly `O(n * m)` in the worst
-  case. Decode is the symmetric multiply-accumulate.
-- The output buffer is reserved once, so encoding does not reallocate during the
-  digit pushes; the trailing `std::reverse` is linear.
+- Power-of-two encode/decode is linear: digits are sliced out of, or packed into,
+  the limbs with shifts and masks, no division.
+- Non-power-of-two encode is dominated by repeated `divmod_small` passes, which is
+  the super-linear part. Each pass is linear in the current quotient size, and
+  there is one per limb of digits, so the conversion is roughly `O(n * m)` in the
+  worst case. Decode is the symmetric multiply-accumulate.
+- Encoding reserves its output once; the trailing reverse inside `digits` is linear.
 
 ## Design decisions
 
@@ -112,8 +113,9 @@ Let `n` be the input size in bytes and `m` the output length.
 - Compile-time alphabets. The `constexpr` constructor builds the lookup tables
   and derived constants at compile time, so each factory encoder is a constant
   with no runtime setup.
-- Power-of-two fast path. Detecting `alphabet_base_bits` and switching to
-  shift/mask avoids `divmod` for the bases where it isn't needed.
+- Conversion lives in uinteger_t. base-x only maps digits through its alphabet, so
+  the power-of-two fast path and any later subquadratic conversion arrive without
+  touching the codec.
 - Translation and case-folding live in the `_ord` table, so decoding ambiguous
   or mixed-case input is a plain table lookup with no special-casing in the hot
   loop.

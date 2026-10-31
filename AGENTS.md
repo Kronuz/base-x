@@ -20,8 +20,8 @@ vendored here.
 - `docs/API.md` — the API reference, the alphabet catalog, and caveats;
   `docs/base-x.d2` is the README diagram's source.
 - `CMakeLists.txt` — the `base_x` target (alias `base_x::base_x`).
-- `ARCHITECTURE.md` — encoding scheme, the two encode paths, check/checksum/
-  padding, complexity.
+- `ARCHITECTURE.md` — encoding scheme, encode and decode through uinteger_t's
+  digit API, check/checksum/padding, complexity.
 - `tests/` — the legacy googletest suite (`tests/testcases/tests.cc`, not built
   by CMake or CI) and its Makefile,
   kept for the broader vector coverage. The CMake/`test/` smoke test is the one
@@ -41,8 +41,7 @@ include path (see `tests/Makefile`).
 
 ## Conventions
 
-- C++17. The code uses `std::string_view`, `constexpr` constructors, and the
-  power-of-two fast path.
+- C++17. The code uses `std::string_view` and `constexpr` constructors.
 - Header-only (`base_x.hh`); there is no `.cc` to compile for the library itself.
   It depends on the `uinteger_t` library, fetched by CMake (not vendored here).
 - Indentation is tabs, matching the existing source.
@@ -56,8 +55,10 @@ include path (see `tests/Makefile`).
   ignored.
 - The factory encoders are `constexpr` and built once at compile time. Don't make
   the constructor non-`constexpr`.
-- `alphabet_base_bits` is nonzero only for power-of-two bases and selects the
-  shift/mask encode path. Everything else goes through `divmod`.
+- Base conversion is not in this repo: `encode` calls `uinteger_t::digits()` and
+  `decode` calls `uinteger_t::from_digits()`, and base-x only maps digits through
+  `_chr`/`_ord`. Speedups to the conversion belong in uinteger_t; bump the pin in
+  `CMakeLists.txt` when base-x needs a new uinteger_t API.
 - `block_size` is nonzero only when `block_padding` is set. The RFC 4648 presets
   depend on this; the plain alphabets must keep it zero.
 - `decode` and the checked encoders throw `std::invalid_argument` on bad input,
