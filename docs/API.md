@@ -132,3 +132,8 @@ above. See the factory structs at the bottom of `base_x.hh` for the full list.
   `is_valid` accepts there; catch the exception if bad input must not escape.
 - `ignore_case` only affects decoding; encoding always emits the alphabet's own
   casing.
+- On AArch64, alphabets of up to 64 characters convert 16 digits or characters at a
+  time with table lookups. Define `BASEX_NO_SIMD` to build the scalar code instead; the
+  results are identical.
+- A string-like `Result` passed to `decode(Result&, ...)` is replaced by the decoded bytes
+  (an empty one is filled directly), and is left as it was when the text is bad.

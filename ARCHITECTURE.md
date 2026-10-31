@@ -23,9 +23,10 @@ standard hex or base64.
 
 ## Alphabet tables
 
-A `BaseX` carries two 256-entry lookup tables built at construction: `_chr` maps a digit (0..base-1) to its character, and `_ord`
+A `BaseX` carries lookup tables built at construction: `_chr` maps a digit (0..base-1) to its character, and `_ord`
 maps a byte back to its digit, with out-of-alphabet bytes set to `size`, which no
-character has (the extended characters take `alphabet_base` up to `size - 1`). The
+character has (the extended characters take `alphabet_base` up to `size - 1`). `_ord8` repeats `_ord` for the 128 ASCII
+bytes as bytes, the digit or 0xff for any other, which is the table the 16-at-a-time scan reads. The
 constructor is `constexpr`, so every factory encoder is built at compile time.
 
 The constructor takes four strings: the `alphabet`, an `extended` set (extra
@@ -43,8 +44,12 @@ A handful of constants are derived once at construction:
 
 `encode(Result&, const uinteger_t&)` asks the value for its digits with
 `uinteger_t::digits(result, alphabet_base)`, which appends them as byte values
-`0..base-1`, most significant first, then maps each through `_chr` in place while it
-adds them up for the checksum. The base-conversion work lives in uinteger_t, so
+`0..base-1`, most significant first, then maps each through `_chr` in place. A
+`with_checksum` alphabet adds up the digits in the same pass. For the others, an
+alphabet of up to 64 characters on AArch64 maps 16 digits at a time with table lookups
+(`vqtbl4q_u8` over the first 64 entries of `_chr`; the last block overlaps the one before it, so
+nothing outside the digits is read or written), and every other build maps one digit at
+a time. `BASEX_NO_SIMD` selects the one-at-a-time code everywhere. The base-conversion work lives in uinteger_t, so
 base-x gets every speedup there:
 
 - Power-of-two bases (base16/base32/base64) are sliced out of the limbs with shifts
@@ -79,8 +84,9 @@ produced:
   the total is not zero mod the size. `is_valid` performs the same check without
   decoding.
 
-The check and checksum sums are accumulated while the digits are mapped (encode) or
-collected (decode) so the feature costs little beyond the trailing character.
+The checksum sum is accumulated while the digits are mapped (encode) and in one pass over the
+collected digits (decode), only for `with_checksum` alphabets; the check character is the value
+mod `size` and needs no sum. The other alphabets pay for neither.
 The padding and the checksum length count only the text this `encode` call
 appended, so encoding into a non-empty `result` leaves its contents alone.
 
@@ -94,7 +100,11 @@ checksum but does not recompute a check character's value; that needs the intege
 `decode(uinteger_t&, const char*, size_t)` mirrors encoding. It
 first subtracts the trailing check/checksum characters from the length, then
 walks the remaining characters once, collecting each digit's value into a buffer
-(256 bytes on the stack, a heap array for longer input). One comparison per character
+(256 bytes on the stack, a heap array for longer input). Where the alphabet has up to 64
+characters, text of 16 or more characters first goes through `to_digits`, which turns 16 characters at a time into digits
+with two chained `vqtbx4q_u8` lookups into `_ord8` (0xff for any byte that is not a digit); the last
+block overlaps the one before it. The first block that holds a byte that is not a digit stops it, and that
+block and the text after it go to the loop below. One comparison per character
 finds the rare ones: a character whose ordinal is not below `alphabet_base` leaves
 the loop, and then characters whose ordinal is negative are ignored (the
 translate-to-negative trick), the padding character (only in an alphabet that has
@@ -105,8 +115,10 @@ packs bits directly for power-of-two bases (linear) and builds a chunk of digits
 SWAR multiplies, then folds four chunks per step, for the others. After that it reverses any block-padding shift and
 verifies the check and checksum if present.
 
-The string-returning overloads then call `uinteger_t::str(256)` to turn the
-integer back into bytes; the integral overloads return the integer directly.
+The string-returning overloads turn the integer back into bytes with
+`uinteger_t::digits(result, 256)`, which writes the limbs big-endian into the result; a
+non-empty `result` is replaced, an empty one receives the bytes directly. The integral overloads return the
+integer directly. Undoing the block-padding shift is skipped when the alphabet has none.
 
 ## Complexity
 
@@ -131,6 +143,9 @@ Let `n` be the input size in bytes and `m` the output length.
 - Conversion lives in uinteger_t. base-x only maps digits through its alphabet, so
   the codec gets the power-of-two fast path and the subquadratic conversion tree with
   no code of its own.
+- The scalar loop is the one place that classifies a byte that is not a digit (invalid,
+  ignored or padding), so the table-lookup scan reports what the scalar code reports: it only converts the
+  leading run of digits and hands the rest over.
 - Translation and case-folding live in the `_ord` table, so decoding ambiguous
   or mixed-case input is a plain table lookup with no special-casing in the hot
   loop.

@@ -13,6 +13,9 @@ Notes for agents and contributors working in this repo.
   presets, and base58 against a classic byte-wise codec, libbase58 and Firedancer when
   built with `-DHAVE_LIBBASE58` / `-DHAVE_FD_BASE58` (build lines at the top of the file).
   Not in CTest: timings are not tests.
+- `test/fuzz_decode.cc` — fuzz target for `decode` and `is_valid` (libFuzzer, or `-DFUZZ_STANDALONE`
+  for a fixed-seed driver that CTest runs): strict presets answer to a model, every preset has to hold up
+  and agree with itself.
 - `CMakeLists.txt` — defines the `base_x` `INTERFACE` target (which fetches the
   `uinteger_t` dependency via FetchContent) and a `ctest` test.
 - `LICENSE` — MIT, Copyright (c) 2017,2019 German Mendez Bravo (Kronuz).
@@ -66,6 +69,10 @@ include path (see `tests/Makefile`).
   `decode` calls `uinteger_t::from_digits()`, and base-x only maps digits through
   `_chr`/`_ord`. Speedups to the conversion belong in uinteger_t; bump the pin in
   `CMakeLists.txt` when base-x needs a new uinteger_t API.
+- `_ord8` is `_ord` for the 128 ASCII bytes as bytes (the digit, 0xff for any other); the 16-at-a-time
+  scan reads it and the scalar loop in `decode` stays the only code that classifies a byte that is not a
+  digit. Both table-lookup paths are for alphabets of up to 64 characters on AArch64;
+  `BASEX_NO_SIMD` turns them off, and CTest runs the test both ways.
 - `block_size` is nonzero only when `block_padding` is set. The RFC 4648 presets
   depend on this; the plain alphabets must keep it zero.
 - `decode` and the checked encoders throw `std::invalid_argument` on bad input,
