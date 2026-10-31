@@ -93,6 +93,11 @@ cmake -B build && cmake --build build && ctest --test-dir build
 
 The tests use `assert`, so build without `NDEBUG`.
 
+[`bench/bench.cc`](bench/bench.cc) times encode and decode at 16 to 1024 bytes
+(`c++ -std=c++17 -O2 -I. -I<uinteger_t> bench/bench.cc -o bench && ./bench`) and can compare
+base58 with libbase58 and Firedancer; the build lines are at the top of the file. It is
+not a CTest target.
+
 ## 🤝 Contributing
 
 Issues and pull requests are welcome. Read [AGENTS.md](AGENTS.md) first. CI must

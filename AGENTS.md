@@ -9,6 +9,10 @@ Notes for agents and contributors working in this repo.
   `Base62`, `Base64`, `Base66`). Header-only.
 - `test/test.cc` — smoke test: encode/decode round-trips across base16/base32/
   base58/base62/base64 plus the check and checksum paths.
+- `bench/bench.cc` — encode and decode timings for the base58, base62, base64 and base16
+  presets, and base58 against a classic byte-wise codec, libbase58 and Firedancer when
+  built with `-DHAVE_LIBBASE58` / `-DHAVE_FD_BASE58` (build lines at the top of the file).
+  Not in CTest: timings are not tests.
 - `CMakeLists.txt` — defines the `base_x` `INTERFACE` target (which fetches the
   `uinteger_t` dependency via FetchContent) and a `ctest` test.
 - `LICENSE` — MIT, Copyright (c) 2017,2019 German Mendez Bravo (Kronuz).
