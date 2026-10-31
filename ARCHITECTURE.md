@@ -144,5 +144,6 @@ Let `n` be the input size in bytes and `m` the output length.
 - Leading zero bytes encode as part of the integer value, not as fixed leading
   characters, so the output is not interchangeable with byte-preserving base58
   variants.
-- `decode` throws on bad input; callers that must avoid exceptions should screen
-  with `is_valid` first.
+- `decode` throws on bad input. `is_valid` screens alphabet, padding and checksum
+  without throwing but does not recompute a check character (`crockfordchk`), so it
+  does not rule out every `decode` exception.

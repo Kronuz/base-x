@@ -126,7 +126,9 @@ above. See the factory structs at the bottom of `base_x.hh` for the full list.
 - Because encoding goes through `uinteger_t`, a leading zero byte does not round
   into a leading alphabet character the way Bitcoin base58check expects. These
   alphabets encode the numeric value, not a fixed-width byte string.
-- `decode` and the checked encoders throw `std::invalid_argument`. If you cannot
-  afford exceptions on bad input, gate with `is_valid` first.
+- `decode` and the checked encoders throw `std::invalid_argument`. `is_valid` checks
+  the alphabet, padding and checksum without throwing, but not a `with_check`
+  character's value (`Base32::crockfordchk()`), so `decode` can still throw on text
+  `is_valid` accepts there; catch the exception if bad input must not escape.
 - `ignore_case` only affects decoding; encoding always emits the alphabet's own
   casing.
