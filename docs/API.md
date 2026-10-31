@@ -32,6 +32,12 @@ template <typename Result, typename T, std::size_t N> Result encode(T (&&s)[N]) 
 a string literal) and returns its text representation in this alphabet. Passing
 an integer literal encodes that integer.
 
+The `rfc4648*` presets encode the bytes of a buffer: a leading zero byte is a leading zero
+digit (`Base64::rfc4648()` writes `AAAAAAAAAQ==` for six zero bytes and `0x01`, as Python's
+`base64.b64encode` does), and an empty buffer is the empty text. A `uinteger_t` stands for its
+shortest byte string, one byte for zero. The other alphabets encode the numeric value, which
+has no leading zero digits, and an empty buffer throws `std::invalid_argument`.
+
 The in-place forms append to `result` and leave what it already holds alone. The
 padding and the checksum cover only the text that call appended, so the appended
 text is the same as the fresh result of the value form.
@@ -46,7 +52,11 @@ void decode(uinteger_t& result, const char* encoded, std::size_t size) const;
 ```
 
 `decode` reverses `encode`. With `Result = std::string` (the default) it returns
-the original bytes; with an integral `Result` it returns the decoded integer. It
+the original bytes; with an integral `Result` it returns the decoded integer. The
+`rfc4648*` presets return exactly the bytes their digits hold, leading zero bytes
+included (eight bits of digits make a byte; the digits past the last whole byte, the
+dangling bits of base64 or the last digit of an odd count of hex digits, are dropped),
+and the integral and `uinteger_t` forms return the number. It
 throws `std::invalid_argument` on an invalid character, a failed check digit, a
 failed checksum, or input shorter than the check and checksum characters its
 alphabet needs (an empty string for any `*chk` alphabet). When it throws on an
@@ -57,8 +67,9 @@ extended character included (an extended character is valid only as a check
 character). The characters an alphabet translates to nothing (the `-` of
 Crockford base32, the line breaks of RFC 4648) are skipped, except in the last
 positions of a check or checksum alphabet, where those characters are read. An
-alphabet with padding ends the digits at the first padding character, and decode
-ignores whatever follows it.
+alphabet with padding ends the digits at the first padding character; only padding
+and skipped characters may follow it, and any other character, a digit included,
+throws, as `is_valid` rejects it.
 
 ## is_valid
 
@@ -82,9 +93,8 @@ throws. A string is well formed when it holds:
 A string shorter than its check and checksum characters is not valid, an empty
 one included. `is_valid` does not recompute the value of a check character, so
 `decode` can still throw `Invalid check` on a `Base32::crockfordchk()` string that
-`is_valid` accepts. For every other alphabet `is_valid` agrees with `decode`
-except after the padding, where `decode` ignores any text and `is_valid` rejects
-what is neither padding nor an ignored character.
+`is_valid` accepts. For every other alphabet `is_valid` and `decode` agree: a string
+is valid exactly when `decode` accepts it.
 
 ## Alphabets
 
@@ -122,10 +132,11 @@ above. See the factory structs at the bottom of `base_x.hh` for the full list.
 - The default alphabets are not byte-aligned standards. `Base16::base16()` and
   `Base64::base64()` are not the same as stock hex or base64; they encode the
   whole input as one integer. Use the `rfc4648*` presets when you need standard,
-  padded output.
+  padded output; they are byte-exact against Python's `base64` module.
 - Because encoding goes through `uinteger_t`, a leading zero byte does not round
   into a leading alphabet character the way Bitcoin base58check expects. These
-  alphabets encode the numeric value, not a fixed-width byte string.
+  alphabets encode the numeric value, not a fixed-width byte string; the `rfc4648*`
+  presets are the exception and keep every byte.
 - `decode` and the checked encoders throw `std::invalid_argument`. `is_valid` checks
   the alphabet, padding and checksum without throwing, but not a `with_check`
   character's value (`Base32::crockfordchk()`), so `decode` can still throw on text

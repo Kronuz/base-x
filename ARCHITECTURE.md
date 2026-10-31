@@ -19,7 +19,8 @@ Because the value is a single integer, the scheme is base-agnostic. The same
 code path serves base2 through base66; only the alphabet and a few derived
 constants change. The cost is that the output is the numeric value, not a
 byte-aligned block encoding, so these alphabets are not drop-in replacements for
-standard hex or base64.
+standard hex or base64. The `rfc4648*` presets are: they encode the bytes (see
+Padding, check, and checksum), leading zero bytes included.
 
 ## Alphabet tables
 
@@ -42,7 +43,7 @@ A handful of constants are derived once at construction:
 
 ## Encoding through the digit API
 
-`encode(Result&, const uinteger_t&)` asks the value for its digits with
+`encode` (through `encode_value`) asks the value for its digits with
 `uinteger_t::digits(result, alphabet_base)`, which appends them as byte values
 `0..base-1`, most significant first, then maps each through `_chr` in place. A
 `with_checksum` alphabet adds up the digits in the same pass. For the others, an
@@ -69,12 +70,17 @@ checksum sum is only accumulated for `with_checksum` alphabets.
 Three optional features hang off the flags, applied after the core digits are
 produced:
 
-- `block_padding` (RFC 4648 style). When set, `block_size` is nonzero and the
-  encoder rounds the value's bit length up to whole bytes, left-shifts it so that
-  length lands on a block boundary, and emits one digit per block, keeping leading
-  zero digits, then appends the padding character so the text length is a
-  multiple of `padding_size`. Decoding undoes the shift with
-  `result >>= (bp & 7)` and stops at the first padding character. This is the
+- `block_padding` (RFC 4648 style). When set, `block_size` is nonzero and the encoder works
+  from the input's byte count `n` (a buffer's length; a `uinteger_t`'s shortest byte string, one byte
+  for zero). The text has `want = ceil(8 n / block_size)` digits: the value is shifted left by
+  `want block_size - 8 n` bits, so its bits end on a digit boundary, and the digits it lacks at the
+  front are zeros inserted ahead of them. That one insert gives the leading zero digit of a small
+  first byte and the leading zero digits of leading zero bytes, so the text is what Python's
+  `base64` module writes whatever the limb alignment. No bytes are no text. The padding character is
+  then appended so the text length is a multiple of `padding_size`. Decoding takes the byte count back
+  from the digit count (`count block_size` bits, 8 to a byte), undoes the shift with
+  `result >>= (bits & 7)`, stops the digits at the first padding character, and writes exactly that many
+  bytes, zero bytes in front included. Digits past the last whole byte are dropped. This is the
   path the `rfc4648*` presets use to match the standard.
 - `with_check` appends a single check character: the value mod the full table
   size, drawn from the alphabet plus the extended set. Decoding
@@ -91,7 +97,7 @@ The padding and the checksum length count only the text this `encode` call
 appended, so encoding into a non-empty `result` leaves its contents alone.
 
 `is_valid` walks the text with the same framing as decode, without converting it:
-digits and ignored characters, then padding (nothing but ignored characters after
+digits and ignored characters, then padding (nothing but padding and ignored characters after
 it), then the check and checksum characters, each below `size`. It verifies the
 checksum but does not recompute a check character's value; that needs the integer.
 
@@ -108,7 +114,8 @@ block and the text after it go to the loop below. One comparison per character
 finds the rare ones: a character whose ordinal is not below `alphabet_base` leaves
 the loop, and then characters whose ordinal is negative are ignored (the
 translate-to-negative trick), the padding character (only in an alphabet that has
-one) stops the scan, and any other, a NUL byte included, raises
+one) ends the digits (a loop then reads the rest of the text, which may hold only padding and
+ignored characters, before anything is converted), and any other, a NUL byte included, raises
 `std::invalid_argument`. The digit sum is added up afterwards, and only for checksum
 alphabets. The collected digits go to `uinteger_t::from_digits`, which
 packs bits directly for power-of-two bases (linear) and builds a chunk of digits with
@@ -117,8 +124,10 @@ verifies the check and checksum if present.
 
 The string-returning overloads turn the integer back into bytes with
 `uinteger_t::digits(result, 256)`, which writes the limbs big-endian into the result; a
-non-empty `result` is replaced, an empty one receives the bytes directly. The integral overloads return the
-integer directly. Undoing the block-padding shift is skipped when the alphabet has none.
+non-empty `result` is replaced, an empty one receives the bytes directly. In a block-padded
+alphabet the byte count is the digit count's (`count block_size / 8`), and the bytes are
+zero-padded in front to it, so leading zero bytes come back (a zero value is that many zero bytes).
+The integral overloads return the integer directly. Undoing the block-padding shift is skipped when the alphabet has none.
 
 ## Complexity
 
@@ -158,7 +167,7 @@ Let `n` be the input size in bytes and `m` the output length.
   input that does not fit in memory.
 - Leading zero bytes encode as part of the integer value, not as fixed leading
   characters, so the output is not interchangeable with byte-preserving base58
-  variants.
+  variants. The `rfc4648*` presets are byte-preserving.
 - `decode` throws on bad input. `is_valid` screens alphabet, padding and checksum
   without throwing but does not recompute a check character (`crockfordchk`), so it
   does not rule out every `decode` exception.

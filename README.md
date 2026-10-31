@@ -23,7 +23,8 @@ characters. For compact, human-friendly IDs, keys, and hashes.
 - **Forgiving decoding.** Case-insensitive alphabets and translated look-alikes:
   Crockford base32 reads `O` as `0`, `I` and `L` as `1`, and skips `-`.
 - **Standard output when you need it.** The `rfc4648()` presets produce padded,
-  byte-aligned hex, base32, and base64.
+  byte-aligned hex, base32, and base64, byte for byte what Python's `base64` module
+  writes, leading zero bytes included.
 - **Header-only**, on [uinteger_t](https://github.com/Kronuz/uinteger_t)'s
   arbitrary-precision integers.
 
@@ -73,7 +74,7 @@ and RFC 4648 padding.
   `base16()`/`base64()` alphabets: they encode the input as one integer. Use the
   `rfc4648()` presets.
 - ❌ Bitcoin-compatible base58check of arbitrary bytes: leading zero bytes are not
-  kept as leading characters.
+  kept as leading characters (the `rfc4648()` presets do keep them).
 - ❌ Streaming data larger than memory: the whole value is converted at once.
 
 ## 📚 Documentation

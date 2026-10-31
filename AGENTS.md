@@ -14,8 +14,8 @@ Notes for agents and contributors working in this repo.
   built with `-DHAVE_LIBBASE58` / `-DHAVE_FD_BASE58` (build lines at the top of the file).
   Not in CTest: timings are not tests.
 - `test/fuzz_decode.cc` — fuzz target for `decode` and `is_valid` (libFuzzer, or `-DFUZZ_STANDALONE`
-  for a fixed-seed driver that CTest runs): strict presets answer to a model, every preset has to hold up
-  and agree with itself.
+  for a fixed-seed driver that CTest runs): strict presets answer to a model, the block-padded (RFC 4648)
+  presets to a bit-level one, and every preset has to hold up and agree with itself.
 - `CMakeLists.txt` — defines the `base_x` `INTERFACE` target (which fetches the
   `uinteger_t` dependency via FetchContent) and a `ctest` test.
 - `LICENSE` — MIT, Copyright (c) 2017,2019 German Mendez Bravo (Kronuz).
@@ -101,7 +101,12 @@ include path (see `tests/Makefile`).
   `Base64::base64()` are not stock hex/base64; only the `rfc4648*` presets are.
   Don't "fix" them to match a standard library.
 - The codec encodes the numeric value, so leading zero bytes are not preserved as
-  leading characters the way Bitcoin base58check expects. This is by design.
+  leading characters the way Bitcoin base58check expects. This is by design. The
+  `rfc4648*` presets are the exception: they encode the input's bytes (`block_padding`),
+  so a leading zero byte is a leading zero digit and decode returns it.
+- A block-padded alphabet takes its digit count from the input's byte count
+  (`encode_value`), and `decode` takes the byte count from the digit count; a
+  `uinteger_t` argument stands for its shortest byte string (one byte for zero).
 - `ignore_case` affects decoding only. Encoding always emits the alphabet's own
   casing.
 - `base_x.hh` is versioned together with Xapiand's vendored copy under

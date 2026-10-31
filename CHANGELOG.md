@@ -3,6 +3,31 @@
 What changed in base-x, newest first. There are no release tags: each section is dated
 and links the commits on `master`.
 
+## Unreleased
+
+Output changes in the RFC 4648 presets and a stricter decode. Every other preset writes and reads
+what it did.
+
+### Changed
+
+- The RFC 4648 presets (`Base16::rfc4648()`, `Base32::rfc4648()`, `rfc4648hex()`, `Base64::rfc4648()`,
+  `rfc4648url()`, `rfc4648url_unpadded()`) are byte-exact against Python's `base64` module: a leading
+  zero byte is a leading zero digit and decodes back to a zero byte. The text used to keep 0 or 8 of them,
+  by limb alignment: six zero bytes then `0x01` gave `AQ==`, where Python gives `AAAAAAAAAQ==`. An empty
+  buffer encodes as the empty text (it threw), and the empty text decodes to no bytes (it gave one zero
+  byte). A `uinteger_t` argument encodes as its shortest byte string, one byte for zero: `0` is `AA==`
+  (it was `A`).
+- `Base16::rfc4648()` writes two digits per byte (`0x01` is `01`, it was `1`) and decodes by bytes: an odd
+  count of digits drops the last one (`ABC` is `0xAB`; it was the number `0x0ABC`). The dangling bits of
+  base64 and base32 text were dropped already.
+- `decode` rejects text after the padding, as `is_valid` does: only padding and ignored characters may follow
+  it, and a digit or any other character throws `std::invalid_argument` (`YWI=junk` decoded as `ab`). The
+  result is left as it was. `is_valid` and `decode` now agree on every text, but for the value of a
+  `Base32::crockfordchk()` check character, which `is_valid` does not recompute.
+- With a check or checksum character after padding, `decode` reads it after all the padding and ignored
+  characters before it; it read the first of them.
+- `decode` counts the bits of digits in `std::size_t`; the count was a 32-bit `unsigned`.
+
 ## 2026-10-31
 
 A performance and correctness pass. Timings are at -O2 on Apple Silicon.
