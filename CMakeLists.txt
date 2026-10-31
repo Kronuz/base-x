@@ -27,6 +27,12 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   target_link_libraries(base_x_test PRIVATE base_x)
   add_test(NAME base_x COMMAND base_x_test)
 
+  # The same test on the scalar code (the table-lookup paths are off), so both answer to its model.
+  add_executable(base_x_test_scalar test/test.cc)
+  target_link_libraries(base_x_test_scalar PRIVATE base_x)
+  target_compile_definitions(base_x_test_scalar PRIVATE BASEX_NO_SIMD)
+  add_test(NAME base_x_scalar COMMAND base_x_test_scalar)
+
   # A runnable tour of the library (not a test): build & run ./build/base_x_demo
   add_executable(base_x_demo examples/demo.cc)
   target_link_libraries(base_x_demo PRIVATE base_x)
