@@ -173,16 +173,20 @@ public:
 				auto rit_f = std::find_if(result.rbegin(), result.rend(), [s](const char& c) { return c != s; });
 				result.resize(result.rend() - rit_f); // shrink
 			} else {
-				uinteger_t uint_base = alphabet_base;
+				unsigned chunk_digits;
+				const uinteger_t::small_divisor chunk(uinteger_t::base_chunk(alphabet_base, chunk_digits));
 				if (!bp) {
 					quotient = num;
 				}
 				do {
-					auto r = quotient.divmod(uint_base);
-					auto d = static_cast<int>(r.second);
-					result.push_back(chr(d));
-					quotient = std::move(r.first);
-					sum += d;
+					auto r = quotient.divmod_small(chunk);
+					auto n = quotient ? chunk_digits : 0u;
+					do {
+						auto d = static_cast<int>(r % alphabet_base);
+						r /= alphabet_base;
+						result.push_back(chr(d));
+						sum += d;
+					} while (n ? --n : r);
 				} while (quotient);
 			}
 			std::reverse(result.begin(), result.end());
@@ -290,7 +294,11 @@ public:
 				bp += block_size;
 			}
 		} else {
-			uinteger_t uint_base = alphabet_base;
+			unsigned chunk_digits;
+			const auto chunk_max = uinteger_t::base_chunk(alphabet_base, chunk_digits);
+			uinteger_t::digit chunk = 1;
+			uinteger_t::digit acc = 0;
+			unsigned count = 0;
 			for (; sz; --sz, encoded += direction) {
 				auto c = *encoded;
 				if (c == padding) break;
@@ -301,8 +309,18 @@ public:
 				}
 				sum += d;
 				++sumsz;
-				result = (result * uint_base) + d;
+				acc = acc * alphabet_base + d;
+				chunk *= alphabet_base;
+				if (++count == chunk_digits) {
+					result.mul_add_small(chunk_max, acc);
+					chunk = 1;
+					acc = 0;
+					count = 0;
+				}
 				bp += block_size;
+			}
+			if (count) {
+				result.mul_add_small(chunk, acc);
 			}
 		}
 
