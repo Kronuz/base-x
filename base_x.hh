@@ -30,13 +30,22 @@ THE SOFTWARE.
 #include <algorithm>        // for std::find_if, std::reverse
 #include <cstdint>          // for std::int64_t
 #include <cstring>          // for std::memcpy
+#include <limits>           // for std::numeric_limits
 #include <memory>           // for std::unique_ptr
-#include <stdexcept>        // for std::invalid_argument
+#include <stdexcept>        // for std::invalid_argument, std::length_error
 #include <string>           // for std::string
 #include <string_view>      // for std::string_view
 #include <type_traits>      // for std::enable_if_t
 
 #include "uinteger_t.hh"
+
+// A test defines BASEX_PUBLIC_IMPLEMENTATION to reach the private members of the class.
+// BASEX_PRIVATE stands for `private`.
+#ifdef BASEX_PUBLIC_IMPLEMENTATION
+#define BASEX_PRIVATE public
+#else
+#define BASEX_PRIVATE private
+#endif
 
 // Alphabets of up to 64 characters map digits to characters and back 16 at a time with
 // table lookups (NEON here); BASEX_NO_SIMD selects the scalar code everywhere.
@@ -213,18 +222,37 @@ public:
 		}
 	}
 
-private:
+BASEX_PRIVATE:
+	// The digits that nbytes bytes make at bits_per_digit bits a digit, and the zero bits that fill the
+	// last one. Throws std::length_error when 8 nbytes would not fit Size (512 MiB at a 32-bit size_t):
+	// the arithmetic would wrap and give the wrong text. A template so that a test can run it at a narrower Size.
+	template <typename Size>
+	static void block_digits(Size nbytes, unsigned bits_per_digit, Size& want, Size& bp) {
+		if (nbytes > (std::numeric_limits<Size>::max() - (bits_per_digit - 1)) / 8) {
+			throw std::length_error("Error: Too many bytes");
+		}
+		const Size bits = static_cast<Size>(nbytes * 8);
+		want = static_cast<Size>((bits + bits_per_digit - 1) / bits_per_digit);
+		bp = static_cast<Size>(want * bits_per_digit - bits);
+	}
+
+	// The bytes of the shortest byte string of a value of `bits` bits: one byte for zero, as digits() writes it.
+	template <typename Size>
+	static Size block_bytes(Size bits) {
+		return bits ? static_cast<Size>(bits / 8 + (bits % 8 != 0)) : static_cast<Size>(1);
+	}
+
 	// Appends the text of `input`, the value of `nbytes` bytes (it fits in them), to result. A block-padded
 	// alphabet writes a digit for every bit of those bytes, so a leading zero byte is a leading zero digit
-	// and no bytes are no text; the other alphabets write the number and ignore `nbytes`.
+	// and no bytes are no text; the other alphabets write the number and ignore `nbytes`. Throws
+	// std::length_error for a block-padded alphabet when 8 nbytes does not fit a size_t.
 	template <typename Result>
 	void encode_value(Result& result, const uinteger_t& input, std::size_t nbytes) const {
 		std::size_t want = 0;  // the digit count the byte count implies, for a block-padded alphabet
 		std::size_t bp = 0;    // zero bits that fill the last digit
 		uinteger_t quotient;
 		if (block_size) {
-			want = (nbytes * 8 + block_size - 1) / block_size;
-			bp = want * block_size - nbytes * 8;
+			block_digits<std::size_t>(nbytes, block_size, want, bp);
 			if (bp) {
 				quotient = input << bp;
 			}
@@ -282,7 +310,7 @@ public:
 	// byte string, one byte for zero (as digits(result, 256) does).
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
 	void encode(Result& result, const uinteger_t& input) const {
-		encode_value(result, input, input ? (input.bits() + 7) / 8 : 1);
+		encode_value(result, input, block_bytes<std::size_t>(input.bits()));
 	}
 
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
@@ -344,7 +372,7 @@ public:
 		return result;
 	}
 
-private:
+BASEX_PRIVATE:
 	// Sets result to the number in the text and returns how many bytes it stands for in a block-padded
 	// alphabet, one for every 8 bits of digits (0 in the others). Throws, leaving result as it was, on bad text.
 	std::size_t decode_value(uinteger_t& result, const char* encoded, std::size_t encoded_size) const {

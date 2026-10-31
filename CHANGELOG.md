@@ -27,6 +27,8 @@ what it did.
 - With a check or checksum character after padding, `decode` reads it after all the padding and ignored
   characters before it; it read the first of them.
 - `decode` counts the bits of digits in `std::size_t`; the count was a 32-bit `unsigned`.
+- An RFC 4648 `encode` throws `std::length_error` when 8 times the byte count does not fit a
+  `std::size_t` (512 MiB or more on a 32-bit one); the digit count would wrap.
 
 ## 2026-10-31
 

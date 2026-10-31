@@ -106,7 +106,11 @@ include path (see `tests/Makefile`).
   so a leading zero byte is a leading zero digit and decode returns it.
 - A block-padded alphabet takes its digit count from the input's byte count
   (`encode_value`), and `decode` takes the byte count from the digit count; a
-  `uinteger_t` argument stands for its shortest byte string (one byte for zero).
+  `uinteger_t` argument stands for its shortest byte string (one byte for zero). The digit
+  count is worked out in `block_digits`, a template on the size type that throws
+  `std::length_error` where 8 times the byte count would wrap; `test/test.cc` runs it at 16 and
+  32 bits (the guard cannot be reached at a 64-bit `size_t`), reaching it with
+  `BASEX_PUBLIC_IMPLEMENTATION` (`BASEX_PRIVATE` stands for `private`).
 - `ignore_case` affects decoding only. Encoding always emits the alphabet's own
   casing.
 - `base_x.hh` is versioned together with Xapiand's vendored copy under

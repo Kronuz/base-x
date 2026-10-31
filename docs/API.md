@@ -36,7 +36,9 @@ The `rfc4648*` presets encode the bytes of a buffer: a leading zero byte is a le
 digit (`Base64::rfc4648()` writes `AAAAAAAAAQ==` for six zero bytes and `0x01`, as Python's
 `base64.b64encode` does), and an empty buffer is the empty text. A `uinteger_t` stands for its
 shortest byte string, one byte for zero. The other alphabets encode the numeric value, which
-has no leading zero digits, and an empty buffer throws `std::invalid_argument`.
+has no leading zero digits, and an empty buffer throws `std::invalid_argument`. An `rfc4648*`
+encode throws `std::length_error` when 8 times the byte count does not fit a `std::size_t`
+(512 MiB or more where it is 32 bits).
 
 The in-place forms append to `result` and leave what it already holds alone. The
 padding and the checksum cover only the text that call appended, so the appended

@@ -6,9 +6,11 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <vector>
 
+#define BASEX_PUBLIC_IMPLEMENTATION  // the size arithmetic of the encoder is private
 #include "base_x.hh"
 
 using Factory = const BaseX& (*)();
@@ -251,6 +253,52 @@ int main() {
 			assert(Base32::rfc4648().encode(bytes) == c.b32 && Base32::rfc4648().decode(c.b32) == bytes);
 			assert(Base16::rfc4648().encode(bytes) == c.b16 && Base16::rfc4648().decode(c.b16) == bytes);
 		}
+	}
+
+	// W16: the digit count of nbytes bytes is worked out in size_t, where 8 nbytes wraps at 512 MiB on a
+	// 32-bit one and gave wrong text without an error. block_digits throws std::length_error for what does
+	// not fit its Size, and encode runs it at size_t; that guard cannot be reached at a 64-bit size_t, so it
+	// runs here at 16 and 32 bits against the same arithmetic in unsigned long long, around the limit and below it.
+	{
+		auto check = [](auto size_tag, unsigned long long nbytes, unsigned bits) {
+			using Size = decltype(size_tag);
+			const unsigned long long max = std::numeric_limits<Size>::max();
+			Size want = 7, bp = 7;
+			bool threw = false;
+			try {
+				BaseX::block_digits<Size>(static_cast<Size>(nbytes), bits, want, bp);
+			} catch (const std::length_error&) {
+				threw = true;
+			}
+			assert(threw == (8 * nbytes + (bits - 1) > max));
+			if (!threw) {
+				const unsigned long long digits = (8 * nbytes + bits - 1) / bits;
+				assert(want == digits && bp == digits * bits - 8 * nbytes && bp < bits);
+			}
+		};
+		auto check_bytes = [](auto size_tag, unsigned long long bits) {
+			using Size = decltype(size_tag);
+			assert(BaseX::block_bytes<Size>(static_cast<Size>(bits)) == (bits ? bits / 8 + (bits % 8 != 0) : 1));
+		};
+		for (unsigned bits = 1; bits <= 8; ++bits) {
+			for (unsigned long long n = 0; n <= 65535; ++n) check(std::uint16_t(), n, bits);
+			for (unsigned long long n = 0; n <= 300; ++n) check(std::uint32_t(), n, bits);
+			for (unsigned long long n = (1ull << 29) - 24; n <= (1ull << 29) + 24; ++n) check(std::uint32_t(), n, bits);
+			for (unsigned long long n = 0xffffffffull - 24; n <= 0xffffffffull; ++n) check(std::uint32_t(), n, bits);
+			for (unsigned long long n = 0; n <= 100; ++n) check(std::size_t(), n, bits);
+		}
+		std::uint32_t want32 = 0, bp32 = 0;
+		bool threw = false;
+		try { BaseX::block_digits<std::uint32_t>(1u << 29, 6, want32, bp32); } catch (const std::length_error&) { threw = true; }
+		assert(threw);  // 2^29 bytes are 2^32 bits
+		BaseX::block_digits<std::uint32_t>((1u << 29) - 1, 6, want32, bp32);
+		assert(want32 == 715827882 && bp32 == 4);  // 2^32 - 8 bits in 6-bit digits: 715827881 and 2 bits over, so 715827882 and 4 to fill
+		std::size_t want = 0, bp = 0;
+		BaseX::block_digits<std::size_t>(1000, 6, want, bp);
+		assert(want == 1334 && bp == 4);  // 8000 bits in 6-bit digits: 1333 and 2 bits over, so 1334 and 4 to fill
+		for (unsigned long long bits = 0; bits <= 65535; ++bits) check_bytes(std::uint16_t(), bits);
+		for (unsigned long long bits = 0xffffffffull - 70; bits <= 0xffffffffull; ++bits) check_bytes(std::uint32_t(), bits);
+		assert(BaseX::block_bytes<std::uint32_t>(0xffffffffu) == (1u << 29));  // (bits + 7) / 8 wraps to 0
 	}
 
 	// W16: decode reads nothing but padding and ignored characters after the padding, as is_valid does;
