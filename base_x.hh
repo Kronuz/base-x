@@ -395,10 +395,15 @@ private:
 			for (std::size_t i = 0; i < count; ++i) sum += digits[i];
 		}
 		sumsz = static_cast<std::int64_t>(count);
+		// The padding ends the digits, and only padding and ignored characters may follow it, as in is_valid.
+		for (; sz; --sz, ++encoded) {
+			const auto c = *encoded;
+			if (c != padding && ord(static_cast<int>(c)) >= 0) {
+				throw std::invalid_argument("Error: Invalid character: '" + std::string(1, c) + "' at " + std::to_string(encoded_size - sz));
+			}
+		}
 		const std::size_t bits = count * block_size;  // zero in an alphabet without block padding
 		result = uinteger_t::from_digits(digits, count, alphabet_base);
-
-		for (; sz && *encoded == padding; --sz, ++encoded);
 
 		if (bits & 7) {
 			result >>= (bits & 7);

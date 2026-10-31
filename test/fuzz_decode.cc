@@ -74,7 +74,7 @@ struct Model {
 };
 
 // A block-padded preset: its digits are bits_per_digit bits each, the text is those bits cut into
-// whole bytes (the rest is dropped), and the padding ends the digits.
+// whole bytes (the rest is dropped), padding ends the digits, and only padding and line breaks follow it.
 struct BlockModel {
 	const char* alphabet;
 	unsigned bits_per_digit;
@@ -84,15 +84,16 @@ struct BlockModel {
 	// Whether the text decodes; the bytes, or the message of the first character that does not.
 	bool decode(const std::string& text, std::string& bytes, std::string& message) const {
 		std::string bits;
+		bool padded = false;
 		for (std::size_t i = 0; i < text.size(); ++i) {
 			const char c = text[i];
 			const char* at = c ? std::strchr(alphabet, c) : nullptr;
-			if (at) {
+			if (at && !padded) {
 				const unsigned digit = static_cast<unsigned>(at - alphabet);
 				for (unsigned b = bits_per_digit; b--;) bits.push_back(static_cast<char>('0' + ((digit >> b) & 1)));
-			} else if (padding && c == padding) {
-				break;  // the text after the padding is not read
-			} else if (ignore_breaks && (c == '\n' || c == '\r')) {
+			} else if (!at && padding && c == padding) {
+				padded = true;
+			} else if (!at && ignore_breaks && (c == '\n' || c == '\r')) {
 			} else {
 				message = std::string("Error: Invalid character: '") + c + "' at " + std::to_string(i);
 				return false;
@@ -196,7 +197,7 @@ void run(std::size_t index, const std::string& text) {
 		std::string expected, expected_message;
 		const bool expect = model.decode(text, expected, expected_message);
 		check(accepted == expect, "a block-padded text is accepted or rejected against the model");
-		check(!valid || expect, "is_valid accepts a block-padded text the model rejects");
+		check(valid == expect, "is_valid and the model disagree on a block-padded text");
 		if (expect) {
 			check(bytes == expected, "block-padded decode differs from the model");
 			check(enc.decode(enc.encode(bytes)) == bytes, "bytes do not survive encode and decode");

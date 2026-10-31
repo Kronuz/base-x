@@ -5,6 +5,7 @@
 #include <cctype>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -222,6 +223,53 @@ int main() {
 		assert(Base16::rfc4648().decode("A").empty());
 	}
 
+	// W16: decode reads nothing but padding and ignored characters after the padding, as is_valid does;
+	// a digit or any other character there throws, and the result is left as it was.
+	{
+		const BaseX& b64 = Base64::rfc4648();
+		assert(b64.decode("YWI=") == "ab");
+		for (const char* good : {"YWI=", "YWI==", "YWI=\n", "YQ==\r\n", "YQ=\n=", "YQ=\n=\n", "YQ=\n\r=\n"}) {
+			assert(b64.is_valid(good));
+			assert(b64.decode(good) == std::string(good[1] == 'Q' ? "a" : "ab"));
+		}
+		for (const char* bad : {"YWI=junk", "YWI=Y", "YQ==Y", "YQ=\n=Y", "YWI==x", "YQ==\x01", "YQ==\xff", "YQ=-=", "Y=Q=", "YQ=a="}) {
+			assert(!b64.is_valid(bad));
+			bool threw = false;
+			try { b64.decode(bad); } catch (const std::invalid_argument&) { threw = true; }
+			assert(threw);
+			uinteger_t value(7);
+			threw = false;
+			try { b64.decode(value, bad, std::strlen(bad)); } catch (const std::invalid_argument&) { threw = true; }
+			assert(threw && value == 7);
+			std::string out = "keep";
+			threw = false;
+			try { b64.decode(out, bad, std::strlen(bad)); } catch (const std::invalid_argument&) { threw = true; }
+			assert(threw && out == "keep");
+			threw = false;
+			try { b64.decode<unsigned>(bad); } catch (const std::invalid_argument&) { threw = true; }
+			assert(threw);
+		}
+		// The message names the first character that does not belong, and where it is.
+		auto message = [](const BaseX& enc, const std::string& text) {
+			try { enc.decode(text); } catch (const std::invalid_argument& e) { return std::string(e.what()); }
+			return std::string("no error");
+		};
+		assert(message(b64, "YWI=junk") == "Error: Invalid character: 'j' at 4");
+		assert(message(b64, "YQ==\n=Y") == "Error: Invalid character: 'Y' at 6");
+		assert(message(Base32::rfc4648(), "MY======X") == "Error: Invalid character: 'X' at 8");
+		assert(message(Base32::rfc4648hex(), "CO======7") == "Error: Invalid character: '7' at 8");
+		assert(message(Base64::rfc4648url(), "YQ==_") == "Error: Invalid character: '_' at 4");
+		// A character that is not a digit is not padding either, in an alphabet without any.
+		assert(message(Base64::rfc4648url_unpadded(), "YQ=") == "Error: Invalid character: '=' at 2");
+		assert(message(Base16::rfc4648(), "41=") == "Error: Invalid character: '=' at 2");
+
+		// A check character after the padding is read after every padding and ignored character before it.
+		const BaseX custom(BaseX::with_check, "01234567", "89", "=", "\n");
+		const std::string checked = custom.encode(std::string_view("a"));
+		const std::string padded = checked.substr(0, checked.size() - 1) + "=\n=" + checked.back();
+		assert(custom.is_valid(padded) && custom.decode(padded) == "a");
+	}
+
 	// A large payload round-trips in every family; bitwise bases decode in one pass.
 	{
 		std::string big(4096, '\0');
@@ -361,7 +409,6 @@ int main() {
 				std::string text = good;
 				text.insert(at, 1, '\0');
 				assert(!enc.is_valid(text));
-				if (at == good.size() && good.back() == '=') continue;  // decode ignores what follows the padding
 				uinteger_t value(7);
 				threw = false;
 				try { enc.decode(value, text.data(), text.size()); } catch (const std::invalid_argument&) { threw = true; }
@@ -413,22 +460,19 @@ int main() {
 		}
 
 		// Every preset: is_valid accepts the text encode writes, and agrees with decode on that text
-		// with one character replaced, inserted, deleted or cut off (an unpadded alphabet exactly;
-		// padded ones only reject what decode rejects, since decode ignores text after the padding;
-		// the check alphabet only accepts what decode accepts, since is_valid does not recompute the check).
+		// with one character replaced, inserted, deleted or cut off (exactly; the check alphabet only
+		// accepts what decode accepts, since is_valid does not recompute the check).
 		std::string pool;
 		for (int c = 32; c < 127; ++c) pool.push_back(static_cast<char>(c));
 		pool += std::string("\0\n\r\x80\xff", 5);
 		for (Factory make : all_presets) {
 			const BaseX& enc = make();
-			const bool padded = enc.encode(std::string_view("a")).back() == '=';
 			const bool checked = &enc == &Base32::crockfordchk();
 			auto agree = [&](const std::string& text) {
 				bool accepted = true;
 				try { enc.decode(text); } catch (const std::invalid_argument&) { accepted = false; }
 				const bool valid = enc.is_valid(text);
 				if (checked) assert(!accepted || valid);
-				else if (padded) assert(!valid || accepted);
 				else assert(valid == accepted);
 			};
 			for (std::size_t length : {1u, 5u, 11u}) {
