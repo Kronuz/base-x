@@ -193,6 +193,35 @@ int main() {
 		}
 	}
 
+	// W9 F5: a NUL byte is an invalid character, not the end of the text, in alphabets without
+	// padding (the padding character was '\0' there, so decode stopped at the NUL and ignored the rest).
+	{
+		const std::string nul("ab\0cd", 5);
+		bool threw = false;
+		try { Base62::base62().decode(nul); } catch (const std::invalid_argument&) { threw = true; }
+		assert(threw);
+		threw = false;
+		try { Base62::base62().decode<unsigned long long>(nul); } catch (const std::invalid_argument&) { threw = true; }
+		assert(threw);
+		assert(!Base62::base62().is_valid(nul));
+		for (const BaseX& enc : {Base2::base2(), Base8::base8(), Base16::base16(), Base32::crockford(), Base32::crockfordchk(),
+		                         Base36::base36chk(), Base58::bitcoin(), Base58::bitcoinchk(), Base62::base62(), Base64::base64(),
+		                         Base64::base64chk(), Base66::base66(), Base64::rfc4648url_unpadded(), Base64::rfc4648(), Base32::rfc4648()}) {
+			const std::string good = enc.encode(std::string_view("Hello world!"));
+			for (std::size_t at : {std::size_t(0), good.size() / 2, good.size()}) {
+				std::string text = good;
+				text.insert(at, 1, '\0');
+				assert(!enc.is_valid(text));
+				if (at == good.size() && good.back() == '=') continue;  // decode ignores what follows the padding
+				uinteger_t value(7);
+				threw = false;
+				try { enc.decode(value, text.data(), text.size()); } catch (const std::invalid_argument&) { threw = true; }
+				assert(threw);
+				if (at < good.size()) assert(value == 7);  // left as it was (a bad check character throws after the assignment)
+			}
+		}
+	}
+
 	std::printf("base-x OK: base58/base62/base16/base32/base64 round-trips + checksums passed\n");
 	return 0;
 }

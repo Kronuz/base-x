@@ -123,6 +123,8 @@ public:
 				cp = ncp;
 			}
 		}
+		// decode finds the padding character by the out-of-alphabet sentinel, so it must not be a digit or ignored.
+		assert(!padding_size || _ord[(unsigned char)padding] == alphabet_base);
 	}
 
 	// Get string representation of value
@@ -265,16 +267,16 @@ public:
 		}
 		std::size_t count = 0;
 		for (;;) {
-			// One check per character covers an invalid, an ignored and the padding character.
+			// One check per character covers an invalid, an ignored and the padding character
+			// (the padding character is never a digit, so it ends the digits here too).
 			for (; sz; --sz, encoded += direction) {
-				const auto c = *encoded;
-				const auto d = ord(static_cast<int>(c));
-				if (static_cast<unsigned>(d) >= static_cast<unsigned>(alphabet_base) || c == padding) break;
+				const auto d = ord(static_cast<int>(*encoded));
+				if (static_cast<unsigned>(d) >= static_cast<unsigned>(alphabet_base)) break;
 				digits[count++] = static_cast<unsigned char>(d);
 			}
 			if (!sz) break;
 			const auto c = *encoded;
-			if (c == padding) break;
+			if (padding_size && c == padding) break;  // alphabets without padding have none to match
 			if (ord(static_cast<int>(c)) >= 0) {
 				throw std::invalid_argument("Error: Invalid character: '" + std::string(1, c) + "' at " + std::to_string(encoded_size - sz));
 			}
