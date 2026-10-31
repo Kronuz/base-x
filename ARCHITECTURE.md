@@ -49,13 +49,15 @@ base-x gets every speedup there:
 
 - Power-of-two bases (base16/base32/base64) are sliced out of the limbs with shifts
   and a mask, no division. This is what makes them cheap.
-- Other bases (base58, base62, base59, ...) take the chunked long-division path: one
-  `divmod_small` pass by the largest power of the base that fits a limb yields that
-  many digits at once. This is the classic base conversion and the more expensive of
-  the two.
+- Other bases (base58, base62, base59, ...) are written as chunks of the largest
+  power of the base that fits a limb, cut from a fixed-point fraction by
+  multiplications (no divisions), then split into digits with fixed-point
+  multiplies. This is the classic base conversion and the more expensive of the two;
+  uinteger_t describes it.
 
-The digits are appended to `result`, so the buffer is reserved once inside `digits`
-and not reallocated.
+The kernel writes the digit bytes straight into `result` when it is a one-byte
+container, and the digits are never copied: `encode` maps them in place. The
+checksum sum is only accumulated for `with_checksum` alphabets.
 
 ## Padding, check, and checksum
 
@@ -85,12 +87,14 @@ collected (decode) so the feature costs little beyond the trailing character.
 `decode(uinteger_t&, const char*, size_t)` mirrors encoding. It
 first subtracts the trailing check/checksum characters from the length, then
 walks the remaining characters once, collecting each digit's value into a buffer
-(256 bytes on the stack, a heap array for longer input). Characters whose ordinal is
+(256 bytes on the stack, a heap array for longer input). One comparison per character
+finds the rare ones: characters whose ordinal is
 negative are ignored (the translate-to-negative trick), the padding character stops
 the scan, and characters at or above `alphabet_base` raise
-`std::invalid_argument`. The collected digits go to `uinteger_t::from_digits`, which
-packs bits directly for power-of-two bases (linear) and folds a limb of digits at a
-time for the others. After that it reverses any block-padding shift and
+`std::invalid_argument`. The digit sum is added up afterwards, and only for checksum
+alphabets. The collected digits go to `uinteger_t::from_digits`, which
+packs bits directly for power-of-two bases (linear) and builds a chunk of digits with
+SWAR multiplies, then folds four chunks per step, for the others. After that it reverses any block-padding shift and
 verifies the check and checksum if present.
 
 The string-returning overloads then call `uinteger_t::str(256)` to turn the
@@ -102,11 +106,10 @@ Let `n` be the input size in bytes and `m` the output length.
 
 - Power-of-two encode/decode is linear: digits are sliced out of, or packed into,
   the limbs with shifts and masks, no division.
-- Non-power-of-two encode is dominated by repeated `divmod_small` passes, which is
-  the super-linear part. Each pass is linear in the current quotient size, and
-  there is one per limb of digits, so the conversion is roughly `O(n * m)` in the
-  worst case. Decode is the symmetric multiply-accumulate.
-- Encoding reserves its output once; the trailing reverse inside `digits` is linear.
+- Non-power-of-two encode and decode are quadratic in the input size: about one limb
+  product per limb of input for each limb-sized chunk of digits (the work sits in
+  uinteger_t; a subquadratic conversion would replace it there).
+- `encode` appends to `result`; the digits are written in place and mapped in place.
 
 ## Design decisions
 

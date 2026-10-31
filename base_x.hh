@@ -154,10 +154,16 @@ public:
 			}
 			const auto count = result.size() - first;
 			auto ptr = &result[first];
-			for (std::size_t i = 0; i < count; ++i) {
-				const auto d = static_cast<unsigned char>(ptr[i]);
-				ptr[i] = chr(d);
-				sum += d;
+			if (flags & BaseX::with_checksum) {
+				for (std::size_t i = 0; i < count; ++i) {
+					const auto d = static_cast<unsigned char>(ptr[i]);
+					ptr[i] = chr(d);
+					sum += d;
+				}
+			} else {
+				for (std::size_t i = 0; i < count; ++i) {
+					ptr[i] = chr(static_cast<unsigned char>(ptr[i]));
+				}
 			}
 			if (padding_size) {
 				Result p;
@@ -258,19 +264,28 @@ public:
 			digits = heap_digits.get();
 		}
 		std::size_t count = 0;
-		for (; sz; --sz, encoded += direction) {
-			auto c = *encoded;
+		for (;;) {
+			// One check per character covers an invalid, an ignored and the padding character.
+			for (; sz; --sz, encoded += direction) {
+				const auto c = *encoded;
+				const auto d = ord(static_cast<int>(c));
+				if (static_cast<unsigned>(d) >= static_cast<unsigned>(alphabet_base) || c == padding) break;
+				digits[count++] = static_cast<unsigned char>(d);
+			}
+			if (!sz) break;
+			const auto c = *encoded;
 			if (c == padding) break;
-			auto d = ord(static_cast<int>(c));
-			if (d < 0) continue; // ignored character
-			if (d >= alphabet_base) {
+			if (ord(static_cast<int>(c)) >= 0) {
 				throw std::invalid_argument("Error: Invalid character: '" + std::string(1, c) + "' at " + std::to_string(encoded_size - sz));
 			}
-			sum += d;
-			++sumsz;
-			digits[count++] = static_cast<unsigned char>(d);
-			bp += block_size;
+			--sz;  // ignored character
+			encoded += direction;
 		}
+		if (flags & BaseX::with_checksum) {
+			for (std::size_t i = 0; i < count; ++i) sum += digits[i];
+		}
+		sumsz = static_cast<std::int64_t>(count);
+		bp = static_cast<unsigned>(count) * block_size;
 		result = uinteger_t::from_digits(digits, count, alphabet_base);
 
 		for (; sz && *encoded == padding; --sz, ++encoded);
