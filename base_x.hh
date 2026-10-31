@@ -76,12 +76,12 @@ public:
 	{
 		for (int c = 0; c < 256; ++c) {
 			_chr[c] = 0;
-			_ord[c] = alphabet_base;
+			_ord[c] = size;  // not a digit, an extended character or ignored; alphabet_base is the first extended character
 		}
 		for (int cp = 0; cp < alphabet_base; ++cp) {
 			auto ch = alphabet[cp];
 			_chr[cp] = ch;
-			assert(_ord[(unsigned char)ch] == alphabet_base);  // Duplicate character in the alphabet
+			assert(_ord[(unsigned char)ch] == size);  // Duplicate character in the alphabet
 			_ord[(unsigned char)ch] = cp;
 			if (flags & BaseX::ignore_case) {
 				if (ch >= 'A' && ch <='Z') {
@@ -95,7 +95,7 @@ public:
 			auto ch = extended[i];
 			auto cp = alphabet_base + i;
 			_chr[cp] = ch;
-			assert(_ord[(unsigned char)ch] == alphabet_base); // Duplicate character in the extended alphabet
+			assert(_ord[(unsigned char)ch] == size); // Duplicate character in the extended alphabet
 			_ord[(unsigned char)ch] = cp;
 			if (flags & BaseX::ignore_case) {
 				if (ch >= 'A' && ch <='Z') {
@@ -110,7 +110,7 @@ public:
 			auto ch = translate[i];
 			auto ncp = _ord[(unsigned char)ch];
 			if (ncp >= alphabet_base) {
-				assert(_ord[(unsigned char)ch] == alphabet_base); // Invalid translation character
+				assert(_ord[(unsigned char)ch] == size); // Invalid translation character (a digit or an extended character)
 				_ord[(unsigned char)ch] = cp;
 				if (flags & BaseX::ignore_case) {
 					if (ch >= 'A' && ch <='Z') {
@@ -124,7 +124,7 @@ public:
 			}
 		}
 		// decode finds the padding character by the out-of-alphabet sentinel, so it must not be a digit or ignored.
-		assert(!padding_size || _ord[(unsigned char)padding] == alphabet_base);
+		assert(!padding_size || _ord[(unsigned char)padding] == size);
 	}
 
 	// Get string representation of value

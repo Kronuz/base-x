@@ -193,6 +193,19 @@ int main() {
 		}
 	}
 
+	// W9 F6: a byte outside the table is not a check character. It shared the ordinal of the first
+	// extended character, so "10?" read as "10*" (and decoded as 32) whenever the check value was 32.
+	{
+		const BaseX& enc = Base32::crockfordchk();
+		assert(enc.encode(32) == "10*");
+		for (int byte = 0; byte < 256; ++byte) {
+			const std::string text = std::string("10") + static_cast<char>(byte);
+			bool decoded = true;
+			try { decoded = enc.decode<unsigned>(text) == 32; } catch (const std::invalid_argument&) { decoded = false; }
+			assert(decoded == (byte == '*'));
+		}
+	}
+
 	// W9 F5: a NUL byte is an invalid character, not the end of the text, in alphabets without
 	// padding (the padding character was '\0' there, so decode stopped at the NUL and ignored the rest).
 	{
