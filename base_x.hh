@@ -213,35 +213,38 @@ public:
 		}
 	}
 
-	// Get string representation of value
-	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
-	void encode(Result& result, const uinteger_t& input) const {
-		std::size_t bp = 0;
-		std::size_t byte_bits = 0;
+private:
+	// Appends the text of `input`, the value of `nbytes` bytes (it fits in them), to result. A block-padded
+	// alphabet writes a digit for every bit of those bytes, so a leading zero byte is a leading zero digit
+	// and no bytes are no text; the other alphabets write the number and ignore `nbytes`.
+	template <typename Result>
+	void encode_value(Result& result, const uinteger_t& input, std::size_t nbytes) const {
+		std::size_t want = 0;  // the digit count the byte count implies, for a block-padded alphabet
+		std::size_t bp = 0;    // zero bits that fill the last digit
 		uinteger_t quotient;
 		if (block_size) {
-			byte_bits = (input.bits() + 7) & ~static_cast<std::size_t>(7);
-			bp = byte_bits % block_size;
-			bp = bp ? (block_size - bp) % block_size : 0;
+			want = (nbytes * 8 + block_size - 1) / block_size;
+			bp = want * block_size - nbytes * 8;
 			if (bp) {
 				quotient = input << bp;
 			}
 		}
 		const uinteger_t& num = bp ? quotient : input;
-		if (num) {
+		if (block_size || static_cast<bool>(num)) {
 			std::int64_t sum = 0;
 			const auto first = result.size();
-			num.digits(result, alphabet_base);
+			if (num) {
+				num.digits(result, alphabet_base);
+			}
 			if (block_size) {
-				// Block-padded encodings carry every input bit, so a zero leading digit stays.
-				const auto want = (byte_bits + bp) / block_size;
+				// Block-padded encodings carry every input bit: the digits the value lacks are leading zeros.
 				const auto have = result.size() - first;
 				if (have < want) {
 					result.insert(result.begin() + first, want - have, 0);
 				}
 			}
 			const auto count = result.size() - first;
-			auto ptr = &result[first];
+			auto ptr = result.data() + first;
 			if (flags & BaseX::with_checksum) {
 				for (std::size_t i = 0; i < count; ++i) {
 					const auto d = static_cast<unsigned char>(ptr[i]);
@@ -274,6 +277,14 @@ public:
 		}
 	}
 
+public:
+	// Appends the text of the number. A block-padded alphabet writes the bytes of its shortest
+	// byte string, one byte for zero (as digits(result, 256) does).
+	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
+	void encode(Result& result, const uinteger_t& input) const {
+		encode_value(result, input, input ? (input.bits() + 7) / 8 : 1);
+	}
+
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
 	Result encode(const uinteger_t& num) const {
 		Result result;
@@ -283,25 +294,29 @@ public:
 
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
 	void encode(Result& result, const unsigned char* decoded, std::size_t decoded_size) const {
-		encode(result, uinteger_t(decoded, decoded_size, 256));
+		if (!decoded_size && block_size) {
+			encode_value(result, uinteger_t(), 0);  // no bytes, no digits
+		} else {
+			encode_value(result, uinteger_t(decoded, decoded_size, 256), decoded_size);
+		}
 	}
 
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
 	Result encode(const unsigned char* decoded, std::size_t decoded_size) const {
 		Result result;
-		encode(result, uinteger_t(decoded, decoded_size, 256));
+		encode(result, decoded, decoded_size);
 		return result;
 	}
 
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
 	void encode(Result& result, const char* decoded, std::size_t decoded_size) const {
-		encode(result, uinteger_t(decoded, decoded_size, 256));
+		encode(result, reinterpret_cast<const unsigned char*>(decoded), decoded_size);
 	}
 
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
 	Result encode(const char* decoded, std::size_t decoded_size) const {
 		Result result;
-		encode(result, uinteger_t(decoded, decoded_size, 256));
+		encode(result, reinterpret_cast<const unsigned char*>(decoded), decoded_size);
 		return result;
 	}
 
@@ -329,7 +344,10 @@ public:
 		return result;
 	}
 
-	void decode(uinteger_t& result, const char* encoded, std::size_t encoded_size) const {
+private:
+	// Sets result to the number in the text and returns how many bytes it stands for in a block-padded
+	// alphabet, one for every 8 bits of digits (0 in the others). Throws, leaving result as it was, on bad text.
+	std::size_t decode_value(uinteger_t& result, const char* encoded, std::size_t encoded_size) const {
 		std::int64_t sum = 0;
 		std::int64_t sumsz = 0;
 		int direction = 1;
@@ -339,8 +357,6 @@ public:
 			throw std::invalid_argument("Error: Encoded string is too short");
 		}
 		auto sz = encoded_size - trailing;
-
-		unsigned bp = 0;
 
 		// Collect the digits (skipping ignored characters), then convert them at once.
 		unsigned char stack_digits[256];
@@ -379,13 +395,13 @@ public:
 			for (std::size_t i = 0; i < count; ++i) sum += digits[i];
 		}
 		sumsz = static_cast<std::int64_t>(count);
-		bp = static_cast<unsigned>(count) * block_size;
+		const std::size_t bits = count * block_size;  // zero in an alphabet without block padding
 		result = uinteger_t::from_digits(digits, count, alphabet_base);
 
 		for (; sz && *encoded == padding; --sz, ++encoded);
 
-		if (bp & 7) {
-			result >>= (bp & 7);
+		if (bits & 7) {
+			result >>= (bits & 7);
 		}
 
 		if (flags & BaseX::with_check) {
@@ -415,13 +431,28 @@ public:
 				throw std::invalid_argument("Error: Invalid checksum");
 			}
 		}
+		return bits >> 3;
+	}
+
+public:
+	void decode(uinteger_t& result, const char* encoded, std::size_t encoded_size) const {
+		decode_value(result, encoded, encoded_size);
 	}
 
 	template <typename Result, typename = typename std::enable_if_t<uinteger_t::is_result<Result>::value>>
 	void decode(Result& result, const char* encoded, std::size_t encoded_size) const {
 		uinteger_t num;
-		decode(num, encoded, encoded_size);
-		if (result.empty()) {
+		const auto nbytes = decode_value(num, encoded, encoded_size);
+		if (block_size) {
+			// A block-padded text stands for exactly the bytes its digits hold: leading zero bytes included.
+			result.clear();
+			if (num) {
+				num.digits(result, 256);
+			}
+			if (result.size() < nbytes) {
+				result.insert(result.begin(), nbytes - result.size(), 0);
+			}
+		} else if (result.empty()) {
 			num.digits(result, 256);  // appends to nothing: the bytes go straight into the result
 		} else {
 			result = num.template str<Result>(256);
@@ -569,7 +600,7 @@ struct Base16 {
 		return encoder;
 	}
 	static const BaseX& rfc4648() {
-		static constexpr BaseX encoder(0, "0123456789ABCDEF", "", "", "");
+		static constexpr BaseX encoder(BaseX::block_padding, "0123456789ABCDEF", "", "", "");
 		return encoder;
 	}
 };

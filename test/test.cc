@@ -103,6 +103,125 @@ int main() {
 		}
 	}
 
+	// W16: the RFC 4648 presets are byte-exact, as Python's base64 module is: a leading zero byte is a
+	// leading zero digit whatever the limb alignment, and no bytes are no text. Vectors from Python
+	// (b16encode, b32encode, b32hexencode, b64encode, urlsafe_b64encode, urlsafe_b64encode without the '=').
+	{
+		auto from_hex = [](const std::string& hex) {
+			std::string bytes;
+			for (std::size_t i = 0; i < hex.size(); i += 2) bytes.push_back(static_cast<char>(std::stoi(hex.substr(i, 2), nullptr, 16)));
+			return bytes;
+		};
+		const BaseX* const presets[] = {&Base16::rfc4648(), &Base32::rfc4648(), &Base32::rfc4648hex(), &Base64::rfc4648(),
+		                                &Base64::rfc4648url(), &Base64::rfc4648url_unpadded()};
+		struct Vector { const char* hex; const char* text[6]; };
+		static const Vector vectors[] = {
+			{"", {"", "", "", "", "", ""}},
+			{"00", {"00", "AA======", "00======", "AA==", "AA==", "AA"}},
+			{"0000", {"0000", "AAAA====", "0000====", "AAA=", "AAA=", "AAA"}},
+			{"000000", {"000000", "AAAAA===", "00000===", "AAAA", "AAAA", "AAAA"}},
+			{"00000000", {"00000000", "AAAAAAA=", "0000000=", "AAAAAA==", "AAAAAA==", "AAAAAA"}},
+			{"0001", {"0001", "AAAQ====", "000G====", "AAE=", "AAE=", "AAE"}},
+			{"0000ff", {"0000FF", "AAAP6===", "000FU===", "AAD/", "AAD_", "AAD_"}},
+			{"00ff00", {"00FF00", "AD7QA===", "03VG0===", "AP8A", "AP8A", "AP8A"}},
+			{"0f", {"0F", "B4======", "1S======", "Dw==", "Dw==", "Dw"}},
+			{"ff", {"FF", "74======", "VS======", "/w==", "_w==", "_w"}},
+			// z zero bytes then 0x01, around the limb size: the output used to keep 0 or 8 of them.
+			{"00000000000001", {"00000000000001", "AAAAAAAAAAAQ====", "00000000000G====", "AAAAAAAAAQ==", "AAAAAAAAAQ==", "AAAAAAAAAQ"}},
+			{"0000000000000001", {"0000000000000001", "AAAAAAAAAAAAC===", "0000000000002===", "AAAAAAAAAAE=", "AAAAAAAAAAE=", "AAAAAAAAAAE"}},
+			{"000000000000000001", {"000000000000000001", "AAAAAAAAAAAAAAI=", "000000000000008=", "AAAAAAAAAAAB", "AAAAAAAAAAAB", "AAAAAAAAAAAB"}},
+			{"00000000000000000001", {"00000000000000000001", "AAAAAAAAAAAAAAAB", "0000000000000001", "AAAAAAAAAAAAAQ==", "AAAAAAAAAAAAAQ==", "AAAAAAAAAAAAAQ"}},
+			{"0000000000000000000000000000000001020304", {"0000000000000000000000000000000001020304", "AAAAAAAAAAAAAAAAAAAAAAAAAAAQEAYE", "000000000000000000000000000G40O4", "AAAAAAAAAAAAAAAAAAAAAAECAwQ=", "AAAAAAAAAAAAAAAAAAAAAAECAwQ=", "AAAAAAAAAAAAAAAAAAAAAAECAwQ"}},
+			{"000000000000000000000000000000000000000000000000000000000000000000", {"000000000000000000000000000000000000000000000000000000000000000000", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA===", "00000000000000000000000000000000000000000000000000000===", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}},
+		};
+		for (const Vector& v : vectors) {
+			const std::string bytes = from_hex(v.hex);
+			for (int i = 0; i < 6; ++i) {
+				assert(presets[i]->encode(bytes) == v.text[i]);
+				assert(presets[i]->decode(v.text[i]) == bytes);
+			}
+		}
+
+		// The same by construction: bits in groups of the digit width, the last group filled with zeros,
+		// then '=' to whole blocks; every count of leading zero bytes, the all-zero inputs included.
+		struct Spec { const BaseX& enc; const char* alphabet; unsigned bits; unsigned block; };
+		const Spec specs[] = {
+			{Base16::rfc4648(), "0123456789ABCDEF", 4, 1},
+			{Base32::rfc4648(), "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", 5, 8},
+			{Base32::rfc4648hex(), "0123456789ABCDEFGHIJKLMNOPQRSTUV", 5, 8},
+			{Base64::rfc4648(), "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", 6, 4},
+			{Base64::rfc4648url(), "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", 6, 4},
+			{Base64::rfc4648url_unpadded(), "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", 6, 1},
+		};
+		auto model = [](const Spec& spec, const std::string& bytes) {
+			std::string bits, text;
+			for (unsigned char c : bytes) {
+				for (int i = 7; i >= 0; --i) bits.push_back(static_cast<char>('0' + ((c >> i) & 1)));
+			}
+			while (bits.size() % spec.bits) bits.push_back('0');
+			for (std::size_t i = 0; i < bits.size(); i += spec.bits) {
+				unsigned digit = 0;
+				for (unsigned j = 0; j < spec.bits; ++j) digit = digit * 2 + static_cast<unsigned>(bits[i + j] - '0');
+				text.push_back(spec.alphabet[digit]);
+			}
+			while (text.size() % spec.block) text.push_back('=');
+			return text;
+		};
+		std::uint32_t seed = 4242;
+		for (const Spec& spec : specs) {
+			for (std::size_t zeros = 0; zeros <= 20; ++zeros) {
+				for (std::size_t tail = 0; tail <= 21; ++tail) {
+					std::string bytes(zeros, '\0');
+					for (std::size_t i = 0; i < tail; ++i) {
+						seed = seed * 1664525u + 1013904223u;
+						bytes.push_back(i % 5 == 4 ? '\0' : static_cast<char>(seed >> 16));
+					}
+					const std::string text = model(spec, bytes);
+					assert(spec.enc.encode(bytes) == text);
+					assert(spec.enc.decode(text) == bytes);
+					assert(spec.enc.is_valid(text));
+				}
+			}
+		}
+
+		// The number overload writes the shortest byte string, one byte for zero; the integer decode
+		// reads the number, so the leading zero bytes carry no value there.
+		assert(Base64::rfc4648().encode(uinteger_t(0)) == "AA==");
+		assert(Base64::rfc4648().encode(uinteger_t(1)) == "AQ==");
+		assert(Base16::rfc4648().encode(uinteger_t(255)) == "FF");
+		assert(Base16::rfc4648().encode(uinteger_t(256)) == "0100");
+		assert(Base32::rfc4648().encode(uinteger_t(0)) == "AA======");
+		assert(Base64::rfc4648().decode<unsigned>("AAAB") == 1);
+		assert(Base16::rfc4648().decode<unsigned>("0001") == 1);
+		uinteger_t number(9);
+		Base64::rfc4648().decode(number, "AAAB", 4);
+		assert(number == 1);
+
+		// Appending keeps what is there and pads the appended text alone; decoding into a Result that
+		// holds something replaces it, a string or a vector, with every byte of the text.
+		std::string out = "xy";
+		Base64::rfc4648().encode(out, std::string_view("\0\0", 2));
+		assert(out == "xyAAA=");
+		Base16::rfc4648().encode(out, std::string_view("\0\x0a", 2));
+		assert(out == "xyAAA=000A");
+		out = "stale";
+		Base64::rfc4648().decode(out, "AAAB", 4);
+		assert(out == std::string("\0\0\x01", 3));
+		std::vector<unsigned char> bytes(5, 9);
+		Base16::rfc4648().decode(bytes, "00FF", 4);
+		assert((bytes == std::vector<unsigned char>{0, 255}));
+		out = "stale";
+		Base64::rfc4648().decode(out, "", 0);
+		assert(out.empty());
+
+		// Digits past the last whole byte are dropped: the dangling bits of base64 (as ever), and the
+		// last digit of an odd count of hex digits.
+		assert(Base64::rfc4648().decode("YWJ") == "ab");
+		assert(Base64::rfc4648().decode("Q").empty());
+		assert(Base16::rfc4648().decode("ABC") == "\xab");
+		assert(Base16::rfc4648().decode("A").empty());
+	}
+
 	// A large payload round-trips in every family; bitwise bases decode in one pass.
 	{
 		std::string big(4096, '\0');
@@ -375,7 +494,7 @@ int main() {
 		};
 		std::uint32_t seed = 12345;
 		auto next = [&seed] { seed = seed * 1664525u + 1013904223u; return seed >> 8; };
-		const Factory plain[] = {Base2::base2, Base8::base8, Base11::base11, Base16::base16, Base16::rfc4648, Base32::base32,
+		const Factory plain[] = {Base2::base2, Base8::base8, Base11::base11, Base16::base16, Base32::base32,
 		                         Base32::crockford, Base36::base36, Base58::base58, Base58::bitcoin, Base58::ripple, Base58::flickr,
 		                         Base59::base59, Base62::base62, Base62::inverted, Base64::base64, Base64::url, Base66::base66};
 		for (Factory make : plain) {
