@@ -372,24 +372,44 @@ public:
 		return result;
 	}
 
+	// Whether the text is well formed for this alphabet: only digits and ignored characters, then
+	// any padding; the check character (when there is one) last but for the checksum character, either
+	// one a digit or an extended character; and the checksum holds. It does not recompute the value
+	// of a check character, so decode can still reject a text that this accepts.
 	bool is_valid(const char* encoded, std::size_t encoded_size) const {
+		const std::size_t trailing = ((flags & BaseX::with_checksum) ? 1 : 0) + ((flags & BaseX::with_check) ? 1 : 0);
+		if (encoded_size < trailing) {
+			return false;
+		}
+		const auto sz = encoded_size - trailing;
 		std::int64_t sum = 0;
 		std::int64_t sumsz = 0;
-		if (flags & BaseX::with_checksum) --sumsz;
-		for (; encoded_size; --encoded_size, ++encoded) {
-			auto d = ord(static_cast<int>(*encoded));
-			if (d < 0) continue; // ignored character
-			if (d >= alphabet_base) {
-				return false;
-			}
+		bool padded = false;
+		for (std::size_t i = 0; i < sz; ++i) {
+			const auto c = encoded[i];
+			const auto d = ord(static_cast<int>(c));
+			if (static_cast<unsigned>(d) < static_cast<unsigned>(alphabet_base)) {
+				if (padded) return false;  // a digit after the padding
+				sum += d;
+				++sumsz;
+			} else if (d >= 0) {
+				if (!padding_size || c != padding) return false;
+				padded = true;
+			}  // else an ignored character
+		}
+		const char* tail = encoded + sz;
+		if (flags & BaseX::with_check) {
+			const auto d = ord(static_cast<int>(*tail++));
+			if (d < 0 || d >= size) return false;
 			sum += d;
 			++sumsz;
 		}
 		if (flags & BaseX::with_checksum) {
+			const auto d = ord(static_cast<int>(*tail));
+			if (d < 0 || d >= size) return false;
+			sum += d;
 			sum += (sumsz + sumsz / size) % size;
-			if (sum % size) {
-				return false;
-			}
+			if (sum % size) return false;
 		}
 		return true;
 	}

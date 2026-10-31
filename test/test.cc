@@ -1,11 +1,26 @@
 // Smoke test for the standalone base-x library.
 // Build: c++ -std=c++17 -I.. test.cc -o test && ./test
 #include <cassert>
+#include <cctype>
 #include <cstdint>
 #include <cstdio>
 #include <string>
 
 #include "base_x.hh"
+
+using Factory = const BaseX& (*)();
+
+// Every preset the library defines.
+static const Factory all_presets[] = {
+	Base2::base2, Base2::base2chk, Base8::base8, Base8::base8chk, Base11::base11, Base11::base11chk,
+	Base16::base16, Base16::base16chk, Base16::rfc4648, Base32::base32, Base32::base32chk,
+	Base32::crockford, Base32::crockfordchk, Base32::rfc4648, Base32::rfc4648hex, Base36::base36,
+	Base36::base36chk, Base58::base58, Base58::base58chk, Base58::bitcoin, Base58::bitcoinchk,
+	Base58::ripple, Base58::ripplechk, Base58::flickr, Base58::flickrchk, Base59::base59,
+	Base59::base59chk, Base59::dubaluchk, Base62::base62, Base62::base62chk, Base62::inverted,
+	Base62::invertedchk, Base64::base64, Base64::base64chk, Base64::url, Base64::urlchk,
+	Base64::rfc4648, Base64::rfc4648url, Base64::rfc4648url_unpadded, Base66::base66, Base66::base66chk,
+};
 
 int main() {
 	// base58 round-trip on an ASCII payload.
@@ -231,6 +246,87 @@ int main() {
 				try { enc.decode(value, text.data(), text.size()); } catch (const std::invalid_argument&) { threw = true; }
 				assert(threw);
 				if (at < good.size()) assert(value == 7);  // left as it was (a bad check character throws after the assignment)
+			}
+		}
+	}
+
+	// W9 F4: is_valid accepts what encode writes, padding and the extended characters a check
+	// character can be, and still rejects those anywhere else.
+	{
+		assert(Base64::rfc4648().is_valid("YWI="));
+		assert(Base64::rfc4648().is_valid("YQ=="));
+		assert(Base64::rfc4648().is_valid("YQ==\n"));  // ignored characters may follow the padding
+		assert(!Base64::rfc4648().is_valid("YQ==Y"));  // a digit may not
+		assert(!Base64::rfc4648().is_valid("Y=Q="));
+		assert(!Base64::base64().is_valid("YQ=="));  // no padding in this alphabet
+
+		// Values 32..36 have a check character from the extended set: 10* 11~ 12$ ...
+		assert(Base32::crockfordchk().encode(32) == "10*");
+		assert(Base32::crockfordchk().is_valid("10*") && Base32::crockfordchk().decode<unsigned>("10*") == 32);
+		assert(!Base32::crockfordchk().is_valid("1U0"));  // an extended character is not a digit
+		assert(!Base32::crockfordchk().is_valid(""));  // too short for its check character, as for decode
+		{
+			// The last character of a check alphabet is a digit, a translated digit or an extended character,
+			// in either case; nothing else (an ignored character, or a byte outside the table).
+			const std::string valid_last = "0123456789ABCDEFGHJKMNPQRSTVWXYZ*~$=UOIL";
+			for (int byte = 0; byte < 256; ++byte) {
+				const std::string text = std::string("10") + static_cast<char>(byte);
+				const bool last_is_valid = byte < 128 && valid_last.find(static_cast<char>(std::toupper(byte))) != std::string::npos;
+				assert(Base32::crockfordchk().is_valid(text) == last_is_valid);
+			}
+		}
+		for (unsigned v = 1; v < 1600; ++v) {
+			const auto text = Base32::crockfordchk().encode(v);
+			assert(Base32::crockfordchk().is_valid(text));
+			assert(Base32::crockfordchk().decode<unsigned>(text) == v);
+		}
+
+		// A checksum is read from the last character, even where that character would be ignored.
+		{
+			const auto text = Base59::base59chk().encode(std::string_view("Hello world!"));
+			assert(Base59::base59chk().is_valid(text));
+			assert(!Base59::base59chk().is_valid(text + "l"));
+			bool threw = false;
+			try { Base59::base59chk().decode(text + "l"); } catch (const std::invalid_argument&) { threw = true; }
+			assert(threw);
+		}
+
+		// Every preset: is_valid accepts the text encode writes, and agrees with decode on that text
+		// with one character replaced, inserted, deleted or cut off (an unpadded alphabet exactly;
+		// padded ones only reject what decode rejects, since decode ignores text after the padding;
+		// the check alphabet only accepts what decode accepts, since is_valid does not recompute the check).
+		std::string pool;
+		for (int c = 32; c < 127; ++c) pool.push_back(static_cast<char>(c));
+		pool += std::string("\0\n\r\x80\xff", 5);
+		for (Factory make : all_presets) {
+			const BaseX& enc = make();
+			const bool padded = enc.encode(std::string_view("a")).back() == '=';
+			const bool checked = &enc == &Base32::crockfordchk();
+			auto agree = [&](const std::string& text) {
+				bool accepted = true;
+				try { enc.decode(text); } catch (const std::invalid_argument&) { accepted = false; }
+				const bool valid = enc.is_valid(text);
+				if (checked) assert(!accepted || valid);
+				else if (padded) assert(!valid || accepted);
+				else assert(valid == accepted);
+			};
+			for (std::size_t length : {1u, 5u, 11u}) {
+				std::string payload;
+				for (std::size_t i = 0; i < length; ++i) payload.push_back(static_cast<char>((i + 1) * 53 + length * 3));
+				payload[0] = static_cast<char>(1 + length * 11);
+				const std::string text = enc.encode(payload);
+				assert(enc.is_valid(text));
+				agree(text);
+				for (std::size_t i = 0; i < text.size(); ++i) {
+					agree(text.substr(0, i));
+					agree(text.substr(0, i) + text.substr(i + 1));
+					for (char c : pool) {
+						std::string replaced = text;
+						replaced[i] = c;
+						agree(replaced);
+						agree(text.substr(0, i) + c + text.substr(i));
+					}
+				}
 			}
 		}
 	}
