@@ -1,6 +1,7 @@
 // Smoke test for the standalone base-x library.
 // Build: c++ -std=c++17 -I.. test.cc -o test && ./test
 #include <cassert>
+#include <cstdint>
 #include <cstdio>
 #include <string>
 
@@ -86,6 +87,59 @@ int main() {
 		threw = false;
 		try { Base62::base62chk().decode("T8dgcjRGuYUueWhtF"); } catch (const std::invalid_argument&) { threw = true; }
 		assert(threw);
+		// A byte >= 0x80 is not in any alphabet (and must not index the table below its start).
+		for (const BaseX& enc : {Base64::base64(), Base58::base58(), Base16::base16(), Base62::base62chk()}) {
+			for (unsigned char byte : {0x80, 0xff}) {
+				std::string text = "SGVs";
+				text.push_back(static_cast<char>(byte));
+				text += "bG8";
+				threw = false;
+				try { enc.decode(text); } catch (const std::invalid_argument&) { threw = true; }
+				assert(threw);
+			}
+		}
+	}
+
+	// Input shorter than the check characters throws std::invalid_argument; it must not
+	// try to allocate a wrapped length.
+	{
+		const std::string empty;
+		for (const BaseX& enc : {Base62::base62chk(), Base32::crockfordchk(), Base64::base64chk()}) {
+			bool threw = false;
+			try { enc.decode(empty); } catch (const std::invalid_argument&) { threw = true; }
+			assert(threw);
+			threw = false;
+			try { enc.decode<std::uint64_t>(empty); } catch (const std::invalid_argument&) { threw = true; }
+			assert(threw);
+		}
+	}
+
+	// Decode lengths around the 256-character stack buffer, with and without ignored
+	// characters, round-tripped. Crockford ignores '-'.
+	{
+		struct Case { const BaseX& enc; int base; bool ignores_dash; };
+		for (const Case& c : {Case{Base32::crockford(), 32, true}, Case{Base58::base58(), 58, false}, Case{Base64::base64(), 64, false}, Case{Base16::base16(), 16, false}}) {
+			std::string alphabet;
+			for (int v = 0; v < c.base; ++v) alphabet += c.enc.encode(uinteger_t(v));
+			for (std::size_t length : {255u, 256u, 257u, 258u, 600u}) {
+				for (bool with_ignored : {false, true}) {
+					if (with_ignored && !c.ignores_dash) continue;
+					std::string text, digits;
+					for (std::size_t i = 0; i < length; ++i) {
+						if (with_ignored && i % 5 == 4 && i + 1 < length) {
+							text.push_back('-');
+						} else {
+							char ch = alphabet[(i == 0 ? 1 : (i * 7 + 3)) % c.base];
+							text.push_back(ch);
+							digits.push_back(ch);
+						}
+					}
+					assert(text.size() == length);
+					assert(c.enc.decode(text) == c.enc.decode(digits));
+					assert(c.enc.encode(c.enc.decode(digits)) == digits);
+				}
+			}
+		}
 	}
 
 	std::printf("base-x OK: base58/base62/base16/base32/base64 round-trips + checksums passed\n");
