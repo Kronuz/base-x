@@ -3,10 +3,14 @@
 What changed in base-x, newest first. There are no release tags: each section is dated
 and links the commits on `master`.
 
-## Unreleased
+## 2026-10-31
 
-Output changes in the RFC 4648 presets and a stricter decode. Every other preset writes and reads
-what it did.
+A performance and correctness pass. Timings are at -O2 on Apple Silicon.
+
+### Added
+
+- `bench/bench.cc`: encode and decode timings for the base58, base62, base64 and base16
+  presets at 16 to 1024 bytes, and base58 against libbase58 and Firedancer ([979180c]).
 
 ### Changed
 
@@ -29,18 +33,6 @@ what it did.
 - `decode` counts the bits of digits in `std::size_t`; the count was a 32-bit `unsigned`.
 - An RFC 4648 `encode` throws `std::length_error` when 8 times the byte count does not fit a
   `std::size_t` (512 MiB or more on a 32-bit one); the digit count would wrap.
-
-## 2026-10-31
-
-A performance and correctness pass. Timings are at -O2 on Apple Silicon.
-
-### Added
-
-- `bench/bench.cc`: encode and decode timings for the base58, base62, base64 and base16
-  presets at 16 to 1024 bytes, and base58 against libbase58 and Firedancer ([979180c]).
-
-### Changed
-
 - `encode` and `decode` run on uinteger_t's `digits()` and `from_digits()`, so a hand-copied
   `uinteger_t.hh` must have them. CMake pins uinteger_t 57ea9d5 ([1687e9a], [a3c0e0d]).
 - `is_valid` accepts `=` padding (`YWI=`) and the extended check characters `*~$=U` of
