@@ -129,9 +129,11 @@ public:
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
 	void encode(Result& result, const uinteger_t& input) const {
 		std::size_t bp = 0;
+		std::size_t byte_bits = 0;
 		uinteger_t quotient;
 		if (block_size) {
-			bp = ((input.bits() + 7) & 0xf8) % block_size;
+			byte_bits = (input.bits() + 7) & ~static_cast<std::size_t>(7);
+			bp = byte_bits % block_size;
 			bp = bp ? (block_size - bp) % block_size : 0;
 			if (bp) {
 				quotient = input << bp;
@@ -142,6 +144,14 @@ public:
 			std::int64_t sum = 0;
 			const auto first = result.size();
 			num.digits(result, alphabet_base);
+			if (block_size) {
+				// Block-padded encodings carry every input bit, so a zero leading digit stays.
+				const auto want = (byte_bits + bp) / block_size;
+				const auto have = result.size() - first;
+				if (have < want) {
+					result.insert(result.begin() + first, want - have, 0);
+				}
+			}
 			const auto count = result.size() - first;
 			auto ptr = &result[first];
 			for (std::size_t i = 0; i < count; ++i) {

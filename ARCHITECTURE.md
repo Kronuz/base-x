@@ -63,7 +63,9 @@ Three optional features hang off the flags, applied after the core digits are
 produced:
 
 - `block_padding` (RFC 4648 style). When set, `block_size` is nonzero and the
-  encoder left-shifts the value so its bit length lands on a block boundary, then appends the padding character so the text length is a
+  encoder rounds the value's bit length up to whole bytes, left-shifts it so that
+  length lands on a block boundary, and emits one digit per block, keeping leading
+  zero digits, then appends the padding character so the text length is a
   multiple of `padding_size`. Decoding undoes the shift with
   `result >>= (bp & 7)` and stops at the first padding character. This is the
   path the `rfc4648*` presets use to match the standard.

@@ -66,15 +66,33 @@ int main() {
 		assert(Base64::rfc4648().decode("Zm9vYmE=") == "fooba");
 		assert(Base32::rfc4648().encode("foobar") == "MZXW6YTBOI======");
 		assert(Base32::rfc4648().decode("MZXW6YTBOI======") == "foobar");
+
+		// RFC 4648 at 32 bytes and up, and with a zero leading digit (vectors from Python's base64).
+		const std::string one("\x01", 1);
+		assert(Base64::rfc4648().encode(one) == "AQ==" && Base64::rfc4648().decode("AQ==") == one);
+		assert(Base32::rfc4648().encode(one) == "AE======" && Base32::rfc4648().decode("AE======") == one);
+		std::string b33("\x03", 1), b48;
+		for (int i = 100; i < 132; ++i) b33.push_back(static_cast<char>(i));
+		for (int i = 1; i < 49; ++i) b48.push_back(static_cast<char>(i));
+		assert(Base64::rfc4648().encode(b33) == "A2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKD");
+		assert(Base32::rfc4648().encode(b33) == "ANSGKZTHNBUWU23MNVXG64DROJZXI5LWO54HS6T3PR6X474AQGBIG===");
+		assert(Base64::rfc4648().encode(b48) == "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w");
+		assert(Base32::rfc4648().encode(b48) == "AEBAGBAFAYDQQCIKBMGA2DQPCAIREEYUCULBOGAZDINRYHI6D4QCCIRDEQSSMJZIFEVCWLBNFYXTA===");
+		for (const std::string* in : {&b33, &b48}) {
+			assert(Base64::rfc4648().decode(Base64::rfc4648().encode(*in)) == *in);
+			assert(Base32::rfc4648().decode(Base32::rfc4648().encode(*in)) == *in);
+			assert(Base32::rfc4648hex().decode(Base32::rfc4648hex().encode(*in)) == *in);
+			assert(Base64::rfc4648url().decode(Base64::rfc4648url().encode(*in)) == *in);
+		}
 	}
 
 	// A large payload round-trips in every family; bitwise bases decode in one pass.
-	// (The RFC 4648 presets are left out: their block alignment only holds below 32 bytes.)
 	{
 		std::string big(4096, '\0');
 		for (std::size_t i = 0; i < big.size(); ++i) big[i] = static_cast<char>(i * 131 + (i >> 5) + 1);
 		big[0] = '\x7b';
-		for (const BaseX& enc : {Base16::base16(), Base32::base32(), Base64::base64(), Base64::url(), Base58::base58(), Base62::base62chk()}) {
+		for (const BaseX& enc : {Base16::base16(), Base32::base32(), Base64::base64(), Base64::url(), Base58::base58(), Base62::base62chk(),
+		                         Base32::rfc4648(), Base32::rfc4648hex(), Base64::rfc4648(), Base64::rfc4648url()}) {
 			assert(enc.decode(enc.encode(big)) == big);
 		}
 	}
