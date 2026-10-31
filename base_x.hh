@@ -85,7 +85,7 @@ class BaseX {
 			}
 			// The last 16 digits go first: they overlap the blocks when n is not a multiple of 16.
 			const uint8x16_t last = vqtbl4q_u8(table, vld1q_u8(p + n - 16));
-			for (std::size_t i = 0; i + 16 <= n; i += 16) {
+			for (std::size_t i = 0; i <= n - 16; i += 16) {
 				vst1q_u8(p + i, vqtbl4q_u8(table, vld1q_u8(p + i)));
 			}
 			vst1q_u8(p + n - 16, last);
@@ -116,7 +116,7 @@ class BaseX {
 				return vqtbx4q_u8(vqtbx4q_u8(invalid, lo, v), hi, vsubq_u8(v, half));
 			};
 			std::size_t i = 0;
-			for (; i + 16 <= n; i += 16) {
+			for (; i <= n - 16; i += 16) {
 				const uint8x16_t r = lookup(vld1q_u8(reinterpret_cast<const std::uint8_t*>(s) + i));
 				if (vmaxvq_u8(r) >= below) {
 					return i;

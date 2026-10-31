@@ -424,6 +424,29 @@ int main() {
 		}
 	}
 
+	// Decoding into a Result replaces what it holds, for an empty one and a full one, a string and
+	// a vector, and leaves it alone when the text is bad.
+	{
+		const std::string payload = "Hello world! Hello world! Hello world!";
+		for (const BaseX& enc : {Base58::bitcoin(), Base62::base62(), Base64::base64(), Base16::base16(), Base58::bitcoinchk()}) {
+			const std::string text = enc.encode(payload);
+			std::string out;
+			enc.decode(out, text.data(), text.size());
+			assert(out == payload);
+			out = "stale text that is not empty";
+			enc.decode(out, text.data(), text.size());
+			assert(out == payload);
+			std::vector<unsigned char> bytes(3, 7);
+			enc.decode(bytes, text.data(), text.size());
+			assert(std::string(bytes.begin(), bytes.end()) == payload);
+			out = "keep";
+			const std::string bad = text.substr(0, text.size() / 2) + '\x01' + text.substr(text.size() / 2);
+			bool threw = false;
+			try { enc.decode(out, bad.data(), bad.size()); } catch (const std::invalid_argument&) { threw = true; }
+			assert(threw && out == "keep");
+		}
+	}
+
 	std::printf("base-x OK: base58/base62/base16/base32/base64 round-trips + checksums passed\n");
 	return 0;
 }
