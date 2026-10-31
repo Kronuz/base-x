@@ -167,7 +167,7 @@ public:
 			}
 			if (padding_size) {
 				Result p;
-				p.resize((padding_size - (result.size() % padding_size)) % padding_size, padding);
+				p.resize((padding_size - (count % padding_size)) % padding_size, padding);
 				result.append(p);
 			}
 			if (flags & BaseX::with_check) {
@@ -176,7 +176,7 @@ public:
 				sum += chk;
 			}
 			if (flags & BaseX::with_checksum) {
-				auto sz = result.size();
+				auto sz = result.size() - first;
 				sz = (sz + sz / size) % size;
 				sum += sz;
 				sum = (size - sum % size) % size;

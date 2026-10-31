@@ -160,6 +160,39 @@ int main() {
 		}
 	}
 
+	// W9 F3: encode into a non-empty result appends exactly what a fresh encode returns. The
+	// padding and the checksum cover the appended text, not the whole buffer, at every prefix
+	// length (the padding repeats every 4 or 8 characters).
+	{
+		assert(Base64::rfc4648().encode("a") == "YQ==");
+		std::string out = "xy";
+		Base64::rfc4648().encode(out, std::string_view("a"));
+		assert(out == "xyYQ==");
+		out = "xy";
+		Base58::bitcoinchk().encode(out, std::string_view("\x21", 1));
+		assert(out == "xy" + Base58::bitcoinchk().encode(std::string_view("\x21", 1)));
+		assert(out == "xyaR");  // the fresh text "aR" carries its own checksum
+		assert(Base58::bitcoinchk().decode(out.substr(2)) == "\x21");
+
+		for (const BaseX& enc : {Base2::base2chk(), Base16::base16chk(), Base32::base32chk(), Base36::base36chk(),
+		                         Base58::bitcoinchk(), Base62::base62chk(), Base64::base64chk(), Base66::base66chk(),
+		                         Base32::crockfordchk(), Base32::rfc4648(), Base32::rfc4648hex(), Base64::rfc4648(),
+		                         Base64::rfc4648url()}) {
+			for (std::size_t length = 1; length <= 24; ++length) {
+				std::string payload;
+				for (std::size_t i = 0; i < length; ++i) payload.push_back(static_cast<char>((i + 1) * 37 + length * 11));
+				payload[0] = static_cast<char>(1 + length * 7 % 250);
+				const std::string fresh = enc.encode(payload);
+				for (std::size_t prefix = 0; prefix <= 9; ++prefix) {
+					std::string text(prefix, 'x');
+					enc.encode(text, payload.data(), payload.size());
+					assert(text == std::string(prefix, 'x') + fresh);
+					assert(enc.decode(text.substr(prefix)) == payload);
+				}
+			}
+		}
+	}
+
 	std::printf("base-x OK: base58/base62/base16/base32/base64 round-trips + checksums passed\n");
 	return 0;
 }
