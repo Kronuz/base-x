@@ -56,6 +56,7 @@ base-x gets every speedup there:
 
 The digits are appended to `result`, so the buffer is reserved once inside `digits`
 and not reallocated.
+
 ## Padding, check, and checksum
 
 Three optional features hang off the flags, applied after the core digits are

@@ -43,8 +43,10 @@ void decode(uinteger_t& result, const char* encoded, std::size_t size) const;
 
 `decode` reverses `encode`. With `Result = std::string` (the default) it returns
 the original bytes; with an integral `Result` it returns the decoded integer. It
-throws `std::invalid_argument` on an invalid character, a failed check digit, or
-a failed checksum.
+throws `std::invalid_argument` on an invalid character, a failed check digit, a
+failed checksum, or input shorter than the check and checksum characters its
+alphabet needs (an empty string for any `*chk` alphabet). When it throws on an
+invalid character, `result` is left as it was.
 
 ## is_valid
 

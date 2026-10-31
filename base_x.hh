@@ -28,6 +28,7 @@ THE SOFTWARE.
 
 #include <cassert>          // for assert
 #include <algorithm>        // for std::find_if, std::reverse
+#include <cstdint>          // for std::int64_t
 #include <memory>           // for std::unique_ptr
 #include <stdexcept>        // for std::invalid_argument
 #include <string>           // for std::string
@@ -138,7 +139,7 @@ public:
 		}
 		const uinteger_t& num = bp ? quotient : input;
 		if (num) {
-			int sum = 0;
+			std::int64_t sum = 0;
 			const auto first = result.size();
 			num.digits(result, alphabet_base);
 			const auto count = result.size() - first;
@@ -226,15 +227,17 @@ public:
 	}
 
 	void decode(uinteger_t& result, const char* encoded, std::size_t encoded_size) const {
-		int sum = 0;
-		int sumsz = 0;
+		std::int64_t sum = 0;
+		std::int64_t sumsz = 0;
 		int direction = 1;
 
-		auto sz = encoded_size;
-		if (flags & BaseX::with_checksum) --sz;
-		if (flags & BaseX::with_check) --sz;
+		const std::size_t trailing = ((flags & BaseX::with_checksum) ? 1 : 0) + ((flags & BaseX::with_check) ? 1 : 0);
+		if (encoded_size < trailing) {
+			throw std::invalid_argument("Error: Encoded string is too short");
+		}
+		auto sz = encoded_size - trailing;
 
-		int bp = 0;
+		unsigned bp = 0;
 
 		// Collect the digits (skipping ignored characters), then convert them at once.
 		unsigned char stack_digits[256];
@@ -343,8 +346,8 @@ public:
 	}
 
 	bool is_valid(const char* encoded, std::size_t encoded_size) const {
-		int sum = 0;
-		int sumsz = 0;
+		std::int64_t sum = 0;
+		std::int64_t sumsz = 0;
 		if (flags & BaseX::with_checksum) --sumsz;
 		for (; encoded_size; --encoded_size, ++encoded) {
 			auto d = ord(static_cast<int>(*encoded));
