@@ -33,6 +33,12 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   target_compile_definitions(base_x_test_scalar PRIVATE BASEX_NO_SIMD)
   add_test(NAME base_x_scalar COMMAND base_x_test_scalar)
 
+  # A fixed-seed run of the decode fuzz target (test/fuzz_decode.cc builds for libFuzzer without the define).
+  add_executable(base_x_fuzz_decode test/fuzz_decode.cc)
+  target_link_libraries(base_x_fuzz_decode PRIVATE base_x)
+  target_compile_definitions(base_x_fuzz_decode PRIVATE FUZZ_STANDALONE)
+  add_test(NAME base_x_fuzz_decode COMMAND base_x_fuzz_decode 20000)
+
   # A runnable tour of the library (not a test): build & run ./build/base_x_demo
   add_executable(base_x_demo examples/demo.cc)
   target_link_libraries(base_x_demo PRIVATE base_x)
