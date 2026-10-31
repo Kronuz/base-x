@@ -82,6 +82,7 @@ and RFC 4648 padding.
   alphabet, and the caveats.
 - [ARCHITECTURE.md](ARCHITECTURE.md): how the codec, check digits, and padding
   work.
+- [CHANGELOG.md](CHANGELOG.md): what changed, by date.
 - [AGENTS.md](AGENTS.md): repository map and traps.
 
 ## 🛠️ Building and testing
