@@ -18,8 +18,9 @@
 // Inputs are random with a nonzero first byte, from a pool of 64 per size that the calls
 // cycle through. Every codec in the comparison is checked against base-x's bitcoin()
 // alphabet before it is timed. The base-x columns call the API as a user does: encode
-// returns a std::string, decode returns a std::string. "bx reuse" encodes into one string
-// that keeps its capacity, as the other codecs write into a caller's buffer.
+// returns a std::string, decode returns a std::string. "bx reuse" encodes (and, last, decodes)
+// into one string that keeps its capacity, as the other codecs write into a caller's buffer; the codec
+// tables end with the same two columns, "enc reuse" and "dec reuse".
 //
 // The classic codec below is the textbook quadratic base58 (as Bitcoin-style codecs do it),
 // written for this file; MIT, like the rest of the repository.
@@ -207,7 +208,7 @@ int main(int argc, char** argv) {
 	for (const auto& codec : codecs) {
 		if (!want(codec.name)) continue;
 		if (!header) {
-			std::printf("\n%-16s %6s %10s %9s %10s %9s\n", "codec", "bytes", "enc ns", "enc ns/B", "dec ns", "dec ns/B");
+			std::printf("\n%-16s %6s %10s %9s %10s %9s %10s %10s\n", "codec", "bytes", "enc ns", "enc ns/B", "dec ns", "dec ns/B", "enc reuse", "dec reuse");
 			header = true;
 		}
 		const BaseX& c = codec.get();
@@ -224,8 +225,21 @@ int main(int argc, char** argv) {
 				const auto& s = text[i % pool_size];
 				return digest(c.decode(s.data(), s.size()));
 			});
+			// The same calls into strings that keep their capacity, as a caller's buffer does.
+			std::string enc_out, dec_out;
+			double enc_re = bench([&](std::size_t i) {
+				enc_out.clear();
+				c.encode(enc_out, pool[i % pool_size].data(), size);
+				return digest(enc_out);
+			});
+			double dec_re = bench([&](std::size_t i) {
+				const auto& s = text[i % pool_size];
+				dec_out.clear();
+				c.decode(dec_out, s.data(), s.size());
+				return digest(dec_out);
+			});
 			double bytes = static_cast<double>(size);
-			std::printf("%-16s %6zu %10.1f %9.2f %10.1f %9.2f\n", codec.name, size, enc, enc / bytes, dec, dec / bytes);
+			std::printf("%-16s %6zu %10.1f %9.2f %10.1f %9.2f %10.1f %10.1f\n", codec.name, size, enc, enc / bytes, dec, dec / bytes, enc_re, dec_re);
 			std::fflush(stdout);
 		}
 	}
@@ -234,8 +248,8 @@ int main(int argc, char** argv) {
 	if (!want("compare")) return 0;
 	const BaseX& bx = Base58::bitcoin();
 	Classic classic;
-	std::printf("\n%-8s | %9s %9s %9s %9s %9s | %9s %9s %9s %9s\n", "bytes", "enc bx", "bx reuse", "classic", "libb58",
-		"firedncr", "dec bx", "classic", "libb58", "firedncr");
+	std::printf("\n%-8s | %9s %9s %9s %9s %9s | %9s %9s %9s %9s | %9s\n", "bytes", "enc bx", "bx reuse", "classic", "libb58",
+		"firedncr", "dec bx", "classic", "libb58", "firedncr", "bx reuse");
 	for (auto size : sizes) {
 		auto pool = inputs(size);
 		std::vector<std::string> text(pool_size);
@@ -323,13 +337,21 @@ int main(int argc, char** argv) {
 			});
 		}
 #endif
+		std::string back;
+		double d_re = bench([&](std::size_t i) {
+			const auto& s = text[i % pool_size];
+			back.clear();
+			bx.decode(back, s.data(), s.size());
+			return digest(back);
+		});
 		auto cell = [](double v) {
 			char buf[32];
 			if (v < 0) std::snprintf(buf, sizeof buf, "%9s", "-"); else std::snprintf(buf, sizeof buf, "%9.1f", v);
 			return std::string(buf);
 		};
-		std::printf("%-8zu | %s %s %s %s %s | %s %s %s %s\n", size, cell(e_bx).c_str(), cell(e_re).c_str(), cell(e_cl).c_str(),
-			cell(e_lb).c_str(), cell(e_fd).c_str(), cell(d_bx).c_str(), cell(d_cl).c_str(), cell(d_lb).c_str(), cell(d_fd).c_str());
+		std::printf("%-8zu | %s %s %s %s %s | %s %s %s %s | %s\n", size, cell(e_bx).c_str(), cell(e_re).c_str(), cell(e_cl).c_str(),
+			cell(e_lb).c_str(), cell(e_fd).c_str(), cell(d_bx).c_str(), cell(d_cl).c_str(), cell(d_lb).c_str(), cell(d_fd).c_str(),
+			cell(d_re).c_str());
 		std::fflush(stdout);
 	}
 }
