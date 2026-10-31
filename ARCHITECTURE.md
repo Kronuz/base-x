@@ -24,8 +24,9 @@ standard hex or base64.
 ## Alphabet tables
 
 A `BaseX` carries two 256-entry lookup tables built at construction: `_chr` maps a digit (0..base-1) to its character, and `_ord`
-maps a byte back to its digit, with out-of-alphabet bytes set to `alphabet_base`
-(an out-of-range sentinel). The constructor is `constexpr`, so every factory
+maps a byte back to its digit, with out-of-alphabet bytes set to `size`, which no
+character has (the extended characters take `alphabet_base` up to `size - 1`, so
+`alphabet_base` itself would be the first of them). The constructor is `constexpr`, so every factory
 encoder is built at compile time.
 
 The constructor takes four strings: the `alphabet`, an `extended` set (extra
@@ -81,6 +82,13 @@ produced:
 
 The check and checksum sums are accumulated while the digits are mapped (encode) or
 collected (decode) so the feature costs little beyond the trailing character.
+The padding and the checksum length count only the text this `encode` call
+appended, so encoding into a non-empty `result` leaves its contents alone.
+
+`is_valid` walks the text with the same framing as decode, without converting it:
+digits and ignored characters, then padding (nothing but ignored characters after
+it), then the check and checksum characters, each below `size`. It verifies the
+checksum but does not recompute a check character's value; that needs the integer.
 
 ## Decoding
 
@@ -88,10 +96,11 @@ collected (decode) so the feature costs little beyond the trailing character.
 first subtracts the trailing check/checksum characters from the length, then
 walks the remaining characters once, collecting each digit's value into a buffer
 (256 bytes on the stack, a heap array for longer input). One comparison per character
-finds the rare ones: characters whose ordinal is
-negative are ignored (the translate-to-negative trick), the padding character stops
-the scan, and characters at or above `alphabet_base` raise
-`std::invalid_argument`. The digit sum is added up afterwards, and only for checksum
+finds the rare ones: a character whose ordinal is not below `alphabet_base` leaves
+the loop, and then characters whose ordinal is negative are ignored (the
+translate-to-negative trick), the padding character (only in an alphabet that has
+one) stops the scan, and any other raises `std::invalid_argument`; a NUL byte
+is such a character, not an end of text. The digit sum is added up afterwards, and only for checksum
 alphabets. The collected digits go to `uinteger_t::from_digits`, which
 packs bits directly for power-of-two bases (linear) and builds a chunk of digits with
 SWAR multiplies, then folds four chunks per step, for the others. After that it reverses any block-padding shift and

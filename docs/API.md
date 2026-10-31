@@ -32,6 +32,10 @@ template <typename Result, typename T, std::size_t N> Result encode(T (&&s)[N]) 
 a string literal) and returns its text representation in this alphabet. Passing
 an integer literal encodes that integer.
 
+The in-place forms append to `result` and leave what it already holds alone. The
+padding and the checksum cover only the text that call appended, so the appended
+text is the same as the fresh result of the value form.
+
 ## decode
 
 ```cpp
@@ -48,6 +52,14 @@ failed checksum, or input shorter than the check and checksum characters its
 alphabet needs (an empty string for any `*chk` alphabet). When it throws on an
 invalid character, `result` is left as it was.
 
+A character that is not a digit is invalid wherever it appears, a NUL byte and an
+extended character included (an extended character is valid only as a check
+character). The characters an alphabet translates to nothing (the `-` of
+Crockford base32, the line breaks of RFC 4648) are skipped, except in the last
+positions of a check or checksum alphabet, where those characters are read. An
+alphabet with padding ends the digits at the first padding character, and decode
+ignores whatever follows it.
+
 ## is_valid
 
 ```cpp
@@ -56,8 +68,23 @@ bool is_valid(std::string_view encoded) const;
 template <typename T, std::size_t N> bool is_valid(T (&&s)[N]) const;
 ```
 
-`is_valid` reports whether a string only contains alphabet characters and, for
-checksum alphabets, whether the checksum holds. It never throws.
+`is_valid` reports whether a string is well formed for the alphabet. It never
+throws. A string is well formed when it holds:
+
+1. digits, and the characters the alphabet ignores, in any mix;
+2. then the padding character, if the alphabet has one (`Base64::rfc4648()` text
+   such as `YWI=`), repeated; only ignored characters may follow it;
+3. then the check character of a `with_check` alphabet, and then the checksum
+   character of a `with_checksum` one, each a digit or one of the alphabet's
+   extended characters (`*~$=U` for `Base32::crockfordchk()`), and the checksum
+   holds.
+
+A string shorter than its check and checksum characters is not valid, an empty
+one included. `is_valid` does not recompute the value of a check character, so
+`decode` can still throw `Invalid check` on a `Base32::crockfordchk()` string that
+`is_valid` accepts. For every other alphabet `is_valid` agrees with `decode`
+except after the padding, where `decode` ignores any text and `is_valid` rejects
+what is neither padding nor an ignored character.
 
 ## Alphabets
 

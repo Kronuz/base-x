@@ -50,9 +50,12 @@ include path (see `tests/Makefile`).
 ## Invariants
 
 - `_chr` maps digit -> character; `_ord` maps byte -> digit, with non-alphabet
-  bytes set to the sentinel `alphabet_base` and translate-to-ignore bytes set
-  negative. Decoding relies on both: `>= alphabet_base` is an error, `< 0` is
-  ignored.
+  bytes set to the sentinel `size` (alphabet plus extended characters, so it is no
+  character's ordinal; the extended characters take `alphabet_base` up to `size - 1`)
+  and translate-to-ignore bytes set negative. Decoding relies on all of these: an
+  ordinal `>= alphabet_base` is not a digit (it is an error, or the padding
+  character), `< 0` is ignored, and a check or checksum character is valid only
+  below `size`.
 - The factory encoders are `constexpr` and built once at compile time. Don't make
   the constructor non-`constexpr`.
 - Base conversion is not in this repo: `encode` calls `uinteger_t::digits()` and
@@ -62,8 +65,13 @@ include path (see `tests/Makefile`).
 - `block_size` is nonzero only when `block_padding` is set. The RFC 4648 presets
   depend on this; the plain alphabets must keep it zero.
 - `decode` and the checked encoders throw `std::invalid_argument` on bad input,
-  bad check digit, or bad checksum. `is_valid` performs the checksum test without
-  throwing.
+  bad check digit, or bad checksum. `is_valid` checks the same framing and the
+  checksum without throwing; it does not recompute a check character's value.
+- The padding character is never a digit or an ignored character (the constructor
+  asserts it), and an alphabet without padding has none: its `padding` member is
+  `'\0'`, so test `padding_size` before comparing with it.
+- `encode` into a non-empty `Result` appends; the padding and the checksum cover
+  only the appended text (measure from `first`, never `result.size()`).
 
 ## How to extend
 
