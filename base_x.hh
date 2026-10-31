@@ -141,9 +141,11 @@ public:
 			int sum = 0;
 			const auto first = result.size();
 			num.digits(result, alphabet_base);
-			for (auto i = first; i < result.size(); ++i) {
-				const auto d = static_cast<unsigned char>(result[i]);
-				result[i] = chr(d);
+			const auto count = result.size() - first;
+			auto ptr = &result[first];
+			for (std::size_t i = 0; i < count; ++i) {
+				const auto d = static_cast<unsigned char>(ptr[i]);
+				ptr[i] = chr(d);
 				sum += d;
 			}
 			if (padding_size) {

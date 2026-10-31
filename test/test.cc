@@ -58,6 +58,35 @@ int main() {
 		}
 	}
 
+	// RFC 4648 vectors, padded and block-aligned, through the bit-packing decode.
+	{
+		assert(Base64::rfc4648().encode("foobar") == "Zm9vYmFy");
+		assert(Base64::rfc4648().encode("fooba") == "Zm9vYmE=");
+		assert(Base64::rfc4648().decode("Zm9vYmE=") == "fooba");
+		assert(Base32::rfc4648().encode("foobar") == "MZXW6YTBOI======");
+		assert(Base32::rfc4648().decode("MZXW6YTBOI======") == "foobar");
+	}
+
+	// A large payload round-trips in every family; bitwise bases decode in one pass.
+	{
+		std::string big(4096, '\0');
+		for (std::size_t i = 0; i < big.size(); ++i) big[i] = static_cast<char>(i * 131 + (i >> 5) + 1);
+		big[0] = '\x7b';
+		for (const BaseX& enc : {Base16::base16(), Base32::base32(), Base64::base64(), Base64::rfc4648(), Base58::base58(), Base62::base62chk()}) {
+			assert(enc.decode(enc.encode(big)) == big);
+		}
+	}
+
+	// A character outside the alphabet throws; so does a corrupted checksum.
+	{
+		bool threw = false;
+		try { Base64::base64().decode("SGVsbG8*d29ybGQh"); } catch (const std::invalid_argument&) { threw = true; }
+		assert(threw);
+		threw = false;
+		try { Base62::base62chk().decode("T8dgcjRGuYUueWhtF"); } catch (const std::invalid_argument&) { threw = true; }
+		assert(threw);
+	}
+
 	std::printf("base-x OK: base58/base62/base16/base32/base64 round-trips + checksums passed\n");
 	return 0;
 }
