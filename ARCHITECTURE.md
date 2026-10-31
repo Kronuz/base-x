@@ -25,9 +25,8 @@ standard hex or base64.
 
 A `BaseX` carries two 256-entry lookup tables built at construction: `_chr` maps a digit (0..base-1) to its character, and `_ord`
 maps a byte back to its digit, with out-of-alphabet bytes set to `size`, which no
-character has (the extended characters take `alphabet_base` up to `size - 1`, so
-`alphabet_base` itself would be the first of them). The constructor is `constexpr`, so every factory
-encoder is built at compile time.
+character has (the extended characters take `alphabet_base` up to `size - 1`). The
+constructor is `constexpr`, so every factory encoder is built at compile time.
 
 The constructor takes four strings: the `alphabet`, an `extended` set (extra
 characters appended after the alphabet, used by the check feature), a
@@ -99,8 +98,8 @@ walks the remaining characters once, collecting each digit's value into a buffer
 finds the rare ones: a character whose ordinal is not below `alphabet_base` leaves
 the loop, and then characters whose ordinal is negative are ignored (the
 translate-to-negative trick), the padding character (only in an alphabet that has
-one) stops the scan, and any other raises `std::invalid_argument`; a NUL byte
-is such a character, not an end of text. The digit sum is added up afterwards, and only for checksum
+one) stops the scan, and any other, a NUL byte included, raises
+`std::invalid_argument`. The digit sum is added up afterwards, and only for checksum
 alphabets. The collected digits go to `uinteger_t::from_digits`, which
 packs bits directly for power-of-two bases (linear) and builds a chunk of digits with
 SWAR multiplies, then folds four chunks per step, for the others. After that it reverses any block-padding shift and
@@ -115,9 +114,10 @@ Let `n` be the input size in bytes and `m` the output length.
 
 - Power-of-two encode/decode is linear: digits are sliced out of, or packed into,
   the limbs with shifts and masks, no division.
-- Non-power-of-two encode and decode are quadratic in the input size: about one limb
-  product per limb of input for each limb-sized chunk of digits (the work sits in
-  uinteger_t; a subquadratic conversion would replace it there).
+- Non-power-of-two encode and decode are quadratic in the input size up to 8192 bits
+  (1 KiB): about one limb product per limb of input for each limb-sized chunk of digits.
+  Above that, uinteger_t converts through a tree of divisions and products, O(M(n) log n)
+  with M its multiplication. The work sits in uinteger_t.
 - `encode` appends to `result`; the digits are written in place and mapped in place.
 
 ## Design decisions
@@ -129,8 +129,8 @@ Let `n` be the input size in bytes and `m` the output length.
   and derived constants at compile time, so each factory encoder is a constant
   with no runtime setup.
 - Conversion lives in uinteger_t. base-x only maps digits through its alphabet, so
-  the power-of-two fast path and any later subquadratic conversion arrive without
-  touching the codec.
+  the codec gets the power-of-two fast path and the subquadratic conversion tree with
+  no code of its own.
 - Translation and case-folding live in the `_ord` table, so decoding ambiguous
   or mixed-case input is a plain table lookup with no special-casing in the hot
   loop.
