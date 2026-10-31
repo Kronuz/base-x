@@ -29,6 +29,7 @@ THE SOFTWARE.
 #include <cassert>          // for assert
 #include <algorithm>        // for std::find_if, std::reverse
 #include <cstdint>          // for std::int64_t
+#include <cstring>          // for std::memcpy
 #include <memory>           // for std::unique_ptr
 #include <stdexcept>        // for std::invalid_argument
 #include <string>           // for std::string
@@ -37,10 +38,18 @@ THE SOFTWARE.
 
 #include "uinteger_t.hh"
 
+// Alphabets of up to 64 characters map digits to characters and back 16 at a time with
+// table lookups (NEON here); BASEX_NO_SIMD selects the scalar code everywhere.
+#if !defined BASEX_NO_SIMD && defined __aarch64__ && defined __ARM_NEON
+#include <arm_neon.h>
+#define BASEX_NEON 1
+#endif
+
 
 class BaseX {
 	char _chr[256];
 	int _ord[256];
+	unsigned char _ord8[128];  // _ord for the ASCII bytes: the digit, or 0xff for any other (the table lookups)
 
 	const int size;
 	const int alphabet_base;
@@ -57,6 +66,79 @@ class BaseX {
 		return _ord[chr];
 	}
 
+	// Replaces the n digits at p (each below alphabet_base) with their characters.
+	template <typename C>
+	void to_chars(C* p, std::size_t n, std::false_type) const {
+		for (std::size_t i = 0; i < n; ++i) {
+			p[i] = static_cast<C>(chr(static_cast<unsigned char>(p[i])));
+		}
+	}
+
+	template <typename C>
+	void to_chars(C* ptr, std::size_t n, std::true_type) const {
+		unsigned char* p = reinterpret_cast<unsigned char*>(ptr);
+#ifdef BASEX_NEON
+		if (alphabet_base <= 64 && n >= 16) {
+			uint8x16x4_t table;
+			for (int i = 0; i < 4; ++i) {
+				table.val[i] = vld1q_u8(reinterpret_cast<const std::uint8_t*>(_chr) + 16 * i);
+			}
+			// The last 16 digits go first: they overlap the blocks when n is not a multiple of 16.
+			const uint8x16_t last = vqtbl4q_u8(table, vld1q_u8(p + n - 16));
+			for (std::size_t i = 0; i + 16 <= n; i += 16) {
+				vst1q_u8(p + i, vqtbl4q_u8(table, vld1q_u8(p + i)));
+			}
+			vst1q_u8(p + n - 16, last);
+			return;
+		}
+#endif
+		for (std::size_t i = 0; i < n; ++i) {
+			p[i] = static_cast<unsigned char>(chr(p[i]));
+		}
+	}
+
+	// Converts the characters s[0, n) to digits at d for as long as they are digits, 16 at a time,
+	// and returns how many it converted; the first character that is not a digit, and the text after
+	// it, are left to the caller. Reads only inside s[0, n) and writes only d[0, n).
+	std::size_t to_digits(const char* s, std::size_t n, unsigned char* d) const {
+#ifdef BASEX_NEON
+		if (alphabet_base <= 64 && n >= 16) {
+			uint8x16x4_t lo, hi;
+			for (int i = 0; i < 4; ++i) {
+				lo.val[i] = vld1q_u8(_ord8 + 16 * i);
+				hi.val[i] = vld1q_u8(_ord8 + 64 + 16 * i);
+			}
+			const uint8x16_t invalid = vdupq_n_u8(0xff);
+			const uint8x16_t half = vdupq_n_u8(64);
+			const unsigned char below = static_cast<unsigned char>(alphabet_base);
+			// An index past a table's 64 entries leaves the lane as it was: 0xff, then.
+			auto lookup = [&](uint8x16_t v) {
+				return vqtbx4q_u8(vqtbx4q_u8(invalid, lo, v), hi, vsubq_u8(v, half));
+			};
+			std::size_t i = 0;
+			for (; i + 16 <= n; i += 16) {
+				const uint8x16_t r = lookup(vld1q_u8(reinterpret_cast<const std::uint8_t*>(s) + i));
+				if (vmaxvq_u8(r) >= below) {
+					return i;
+				}
+				vst1q_u8(d + i, r);
+			}
+			if (i < n) {
+				// The last 16 characters overlap the ones just converted.
+				const uint8x16_t r = lookup(vld1q_u8(reinterpret_cast<const std::uint8_t*>(s) + n - 16));
+				if (vmaxvq_u8(r) < below) {
+					vst1q_u8(d + n - 16, r);
+					return n;
+				}
+			}
+			return i;
+		}
+#else
+		(void)s; (void)n; (void)d;
+#endif
+		return 0;
+	}
+
 public:
 	static constexpr int ignore_case =   (1 << 0);
 	static constexpr int with_checksum = (1 << 1);
@@ -67,6 +149,7 @@ public:
 	constexpr BaseX(int flgs, const char (&alphabet)[alphabet_size1], const char (&extended)[extended_size1], const char (&padding_string)[padding_size1], const char (&translate)[translate_size1]) :
 		_chr(),
 		_ord(),
+		_ord8(),
 		size(alphabet_size1 - 1 + extended_size1 - 1),
 		alphabet_base(alphabet_size1 - 1),
 		block_size((flgs & BaseX::block_padding) ? uinteger_t::base_bits(alphabet_base) : 0),
@@ -125,6 +208,9 @@ public:
 		}
 		// decode finds the padding character by the out-of-alphabet sentinel, so it must not be a digit or ignored.
 		assert(!padding_size || _ord[(unsigned char)padding] == size);
+		for (int c = 0; c < 128; ++c) {
+			_ord8[c] = (_ord[c] >= 0 && _ord[c] < alphabet_base) ? static_cast<unsigned char>(_ord[c]) : static_cast<unsigned char>(0xff);
+		}
 	}
 
 	// Get string representation of value
@@ -163,9 +249,8 @@ public:
 					sum += d;
 				}
 			} else {
-				for (std::size_t i = 0; i < count; ++i) {
-					ptr[i] = chr(static_cast<unsigned char>(ptr[i]));
-				}
+				using C = typename Result::value_type;
+				to_chars(ptr, count, std::integral_constant<bool, std::is_integral<C>::value && sizeof(C) == 1 && !std::is_same<C, bool>::value>());
 			}
 			if (padding_size) {
 				Result p;
@@ -266,6 +351,13 @@ public:
 			digits = heap_digits.get();
 		}
 		std::size_t count = 0;
+		{
+			// A run of digit characters converts 16 at a time; the loop below takes the rest.
+			const auto done = to_digits(encoded, sz, digits);
+			count = done;
+			sz -= done;
+			encoded += done;
+		}
 		for (;;) {
 			// One check per character covers an invalid, an ignored and the padding character
 			// (the padding character is never a digit, so it ends the digits here too).
@@ -292,7 +384,9 @@ public:
 
 		for (; sz && *encoded == padding; --sz, ++encoded);
 
-		result >>= (bp & 7);
+		if (bp & 7) {
+			result >>= (bp & 7);
+		}
 
 		if (flags & BaseX::with_check) {
 			auto c = *encoded;
@@ -327,7 +421,11 @@ public:
 	void decode(Result& result, const char* encoded, std::size_t encoded_size) const {
 		uinteger_t num;
 		decode(num, encoded, encoded_size);
-		result = num.template str<Result>(256);
+		if (result.empty()) {
+			num.digits(result, 256);  // appends to nothing: the bytes go straight into the result
+		} else {
+			result = num.template str<Result>(256);
+		}
 	}
 
 	// Decode straight into a native integer Result, reversing the integer encode.

@@ -1,10 +1,12 @@
 // Smoke test for the standalone base-x library.
 // Build: c++ -std=c++17 -I.. test.cc -o test && ./test
+#include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <cstdint>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 #include "base_x.hh"
 
@@ -325,6 +327,97 @@ int main() {
 						replaced[i] = c;
 						agree(replaced);
 						agree(text.substr(0, i) + c + text.substr(i));
+					}
+				}
+			}
+		}
+	}
+
+	// W12: the codec against a model with nothing in common with it: byte-wise schoolbook base
+	// conversion over a digit-to-character table read back through encode of one-digit values. The
+	// plain presets (no padding, check or checksum), texts of every length around 16 characters
+	// (the table-lookup block) and a bad character at every position of them. This runs with and
+	// without BASEX_NO_SIMD in CTest, so the vector and the scalar paths answer to the same model.
+	{
+		struct Model {
+			std::string alphabet;  // digit -> character
+			unsigned base;
+			std::string encode(const std::string& bytes) const {
+				std::vector<unsigned> digits;  // least significant first
+				for (unsigned char byte : bytes) {
+					unsigned carry = byte;
+					for (auto& d : digits) {
+						carry += d * 256u;
+						d = carry % base;
+						carry /= base;
+					}
+					for (; carry; carry /= base) digits.push_back(carry % base);
+				}
+				std::string out;
+				for (auto i = digits.size(); i--;) out.push_back(alphabet[digits[i]]);
+				return out.empty() ? std::string(1, alphabet[0]) : out;
+			}
+			std::string decode(const std::string& text) const {
+				std::vector<unsigned> bytes;  // least significant first
+				for (char c : text) {
+					unsigned carry = static_cast<unsigned>(alphabet.find(c));
+					for (auto& b : bytes) {
+						carry += b * base;
+						b = carry & 255u;
+						carry >>= 8;
+					}
+					for (; carry; carry >>= 8) bytes.push_back(carry & 255u);
+				}
+				std::string out;
+				for (auto i = bytes.size(); i--;) out.push_back(static_cast<char>(bytes[i]));
+				return out.empty() ? std::string(1, '\0') : out;
+			}
+		};
+		std::uint32_t seed = 12345;
+		auto next = [&seed] { seed = seed * 1664525u + 1013904223u; return seed >> 8; };
+		const Factory plain[] = {Base2::base2, Base8::base8, Base11::base11, Base16::base16, Base16::rfc4648, Base32::base32,
+		                         Base32::crockford, Base36::base36, Base58::base58, Base58::bitcoin, Base58::ripple, Base58::flickr,
+		                         Base59::base59, Base62::base62, Base62::inverted, Base64::base64, Base64::url, Base66::base66};
+		for (Factory make : plain) {
+			const BaseX& enc = make();
+			Model model;
+			for (unsigned v = 0;; ++v) {
+				const std::string one = enc.encode(uinteger_t(v));
+				if (v && one.size() > 1) {
+					model.base = v;
+					break;
+				}
+				model.alphabet += one;
+			}
+			// A character that is neither a digit nor ignored, whichever the alphabet.
+			std::string bad;
+			for (char c : {'\x01', '\x7f', '\x80', '\xff', '\x1b'}) {
+				if (model.alphabet.find(c) == std::string::npos) bad.push_back(c);
+			}
+			assert(bad.size() >= 3);
+			for (std::size_t length = 1; length <= 70; ++length) {
+				for (int shape = 0; shape < 4; ++shape) {
+					std::string bytes(length, '\0');
+					for (auto& b : bytes) b = static_cast<char>(next());
+					if (shape == 0) bytes[0] = static_cast<char>(1 + next() % 255);
+					if (shape == 1) { for (std::size_t i = 0; i < length && i < 9; ++i) bytes[i] = '\0'; }  // leading zero bytes
+					if (shape == 2) bytes.assign(length, '\xff');
+					const std::string text = enc.encode(bytes);
+					assert(text == model.encode(bytes));
+					std::string value = bytes.substr(std::min(bytes.find_first_not_of('\0'), bytes.size() - 1));
+					assert(enc.decode(text) == model.decode(text));
+					assert(enc.decode(text) == value);
+					// A digit-only text with leading zero digits (the scan converts them like any other).
+					std::string zeros = std::string(1 + next() % 20, model.alphabet[0]) + text;
+					assert(enc.decode(zeros) == model.decode(zeros));
+					for (std::size_t at = 0; at < text.size(); ++at) {
+						const char c = bad[next() % bad.size()];
+						std::string broken = text;
+						broken[at] = c;
+						std::string what;
+						try { enc.decode(broken); } catch (const std::invalid_argument& e) { what = e.what(); }
+						assert(what == std::string("Error: Invalid character: '") + c + "' at " + std::to_string(at));
+						assert(!enc.is_valid(broken));
 					}
 				}
 			}
