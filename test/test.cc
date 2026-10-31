@@ -223,6 +223,36 @@ int main() {
 		assert(Base16::rfc4648().decode("A").empty());
 	}
 
+	// A1: a parsed byte string of 8 or more zero bytes then 0x01 is the number 1. It once kept a zero limb
+	// (it compared unequal to 1, had 65 bits, and sized an RFC 4648 text from them), and base58 never showed
+	// it. The numeric alphabets write 1 whatever the zero count; the RFC presets write every byte (Python).
+	{
+		for (std::size_t zeros = 0; zeros <= 20; ++zeros) {
+			std::string bytes(zeros, '\0');
+			bytes.push_back('\x01');
+			const uinteger_t value(bytes.data(), bytes.size(), 256);
+			assert(value == 1 && !(value > 1) && value.bits() == 1);
+			assert(Base58::bitcoin().encode(bytes) == "2" && Base58::bitcoin().encode(value) == "2");
+			assert(Base58::base58().encode(bytes) == "1" && Base62::base62().encode(bytes) == "1");
+			assert(Base16::base16().encode(bytes) == "1" && Base64::base64().encode(bytes) == "B");
+			assert(Base64::rfc4648().encode(value) == "AQ==" && Base16::rfc4648().encode(value) == "01");
+		}
+		struct Case { std::size_t zeros; const char* b64; const char* b32; const char* b16; };
+		static const Case cases[] = {
+			{8, "AAAAAAAAAAAB", "AAAAAAAAAAAAAAI=", "000000000000000001"},
+			{15, "AAAAAAAAAAAAAAAAAAAAAQ==", "AAAAAAAAAAAAAAAAAAAAAAAAAE======", "00000000000000000000000000000001"},
+			{16, "AAAAAAAAAAAAAAAAAAAAAAE=", "AAAAAAAAAAAAAAAAAAAAAAAAAAAQ====", "0000000000000000000000000000000001"},
+			{17, "AAAAAAAAAAAAAAAAAAAAAAAB", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAC===", "000000000000000000000000000000000001"},
+		};
+		for (const Case& c : cases) {
+			std::string bytes(c.zeros, '\0');
+			bytes.push_back('\x01');
+			assert(Base64::rfc4648().encode(bytes) == c.b64 && Base64::rfc4648().decode(c.b64) == bytes);
+			assert(Base32::rfc4648().encode(bytes) == c.b32 && Base32::rfc4648().decode(c.b32) == bytes);
+			assert(Base16::rfc4648().encode(bytes) == c.b16 && Base16::rfc4648().decode(c.b16) == bytes);
+		}
+	}
+
 	// W16: decode reads nothing but padding and ignored characters after the padding, as is_valid does;
 	// a digit or any other character there throws, and the result is left as it was.
 	{
