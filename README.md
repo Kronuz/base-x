@@ -18,6 +18,8 @@ characters. For compact, human-friendly IDs, keys, and hashes.
 - **Any alphabet.** Ready-made Bitcoin, Ripple, and Flickr base58, base62,
   Crockford base32, URL-safe base64, the RFC 4648 variants, and more; or bring
   your own.
+- **Fast.** A 32-byte key encodes in base58 in 74 ns and decodes in 72 on an Apple M1 Pro,
+  where libbase58 takes 2.1 µs and 0.5 µs ([Performance](#-performance)).
 - **Check characters.** The `*chk()` alphabets append a check character that
   catches transcription errors; `is_valid` tests without decoding.
 - **Forgiving decoding.** Case-insensitive alphabets and translated look-alikes:
