@@ -36,6 +36,8 @@ A performance and correctness pass. Timings are at -O2 on Apple Silicon.
   `std::size_t` (512 MiB or more on a 32-bit one); the digit count would wrap ([b468653]).
 - `encode` and `decode` run on uinteger_t's `digits()` and `from_digits()`, so a hand-copied
   `uinteger_t.hh` must have them. CMake pins uinteger_t 57ea9d5 ([1687e9a], [a3c0e0d]).
+- CMake pins uinteger_t [afdded1](https://github.com/Kronuz/uinteger_t/commit/afdded1), with its
+  quotient-only division and eight-limb addition.
 - `is_valid` accepts `=` padding (`YWI=`) and the extended check characters `*~$=U` of
   `Base32::crockfordchk()`, as `decode` does, and rejects a digit after padding ([f702d6d]).
 - `is_valid` answers differently for text that ends in an ignored character in six presets,
