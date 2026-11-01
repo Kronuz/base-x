@@ -1,0 +1,208 @@
+# base_x.hh's leading_zeros flag: the count of zero bytes on encode and of zero digits on decode,
+# where the zero digits go, what the checksum and padding cover, and which presets carry the flag.
+header: base_x.hh
+tests: base_x base_x_scalar base_x_fuzz_decode base_x_golden base_x_golden_scalar
+
+# --- count on encode
+
+mutant: enc-count-none
+what: encode: leading zero bytes are not counted
+find: \t\t\twhile (zeros < decoded_size && !decoded[zeros]) {\n\t\t\t\t++zeros;\n\t\t\t}
+repl: \t\t\twhile (false && zeros < decoded_size && !decoded[zeros]) {\n\t\t\t\t++zeros;\n\t\t\t}
+
+mutant: enc-count-short
+what: encode: the count stops one byte early
+find: \t\t\twhile (zeros < decoded_size && !decoded[zeros]) {
+repl: \t\t\twhile (zeros + 1 < decoded_size && !decoded[zeros]) {
+
+mutant: enc-count-one-more
+what: encode: the count is one too many
+find: \t\t\tencode_value(result, rest ? uinteger_t(decoded + zeros, rest, 256) : uinteger_t(), 0, zeros);
+repl: \t\t\tencode_value(result, rest ? uinteger_t(decoded + zeros, rest, 256) : uinteger_t(), 0, zeros + 1);
+
+mutant: enc-count-stops-at-one
+what: encode: at most one zero digit
+find: \t\t\tencode_value(result, rest ? uinteger_t(decoded + zeros, rest, 256) : uinteger_t(), 0, zeros);
+repl: \t\t\tencode_value(result, rest ? uinteger_t(decoded + zeros, rest, 256) : uinteger_t(), 0, zeros ? 1 : 0);
+
+mutant: enc-rest-not-skipped
+what: encode: the zeros stay in the number and are written again
+find: uinteger_t(decoded + zeros, rest, 256) : uinteger_t(), 0, zeros);
+repl: uinteger_t(decoded, decoded_size, 256) : uinteger_t(), 0, zeros);
+equivalent: the number's constructor drops leading zero bytes, so the number is the same
+
+mutant: enc-insert-front
+what: encode: zero digits go to the front of the buffer, not of the appended text
+find: \t\t\t\tresult.insert(result.begin() + first, zeros, 0);
+repl: \t\t\t\tresult.insert(result.begin(), zeros, 0);
+
+mutant: enc-zeros-after-digits
+what: encode: zero digits are appended after the digits
+find: \t\t\t\tresult.insert(result.begin() + first, zeros, 0);
+repl: \t\t\t\tresult.insert(result.end(), zeros, 0);
+
+mutant: enc-number-zero
+what: encode(uinteger_t): zero writes no digit
+find: static_cast<bool>(input) ? 0 : 1);
+repl: 0);
+
+mutant: enc-number-nonzero
+what: encode(uinteger_t): a number gets a zero digit too
+find: static_cast<bool>(input) ? 0 : 1);
+repl: 1);
+
+mutant: enc-empty-writes-zero
+what: encode_value: no bytes and no number write a zero digit (the flag is left out of the condition)
+find: \t\tif (block_size || (flags & BaseX::leading_zeros) || static_cast<bool>(num)) {
+repl: \t\tif (block_size || static_cast<bool>(num) || zeros) {
+
+mutant: enc-checksum-without-zeros
+what: encode: the checksum length leaves the zero digits out
+find: \t\t\t\tauto sz = result.size() - first;
+repl: \t\t\t\tauto sz = result.size() - first - zeros;
+
+mutant: enc-padding-without-zeros
+what: encode: the padding count leaves the zero digits out
+find: \t\t\t\tp.resize((padding_size - (count % padding_size)) % padding_size, padding);
+repl: \t\t\t\tp.resize((padding_size - ((count - zeros) % padding_size)) % padding_size, padding);
+
+# --- count on decode
+
+mutant: dec-count-none
+what: decode: leading zero digits are not counted
+find: \t\t\twhile (zeros < count && !digits[zeros]) {\n\t\t\t\t++zeros;\n\t\t\t}
+repl: \t\t\twhile (false && zeros < count && !digits[zeros]) {\n\t\t\t\t++zeros;\n\t\t\t}
+
+mutant: dec-count-short
+what: decode: the count stops one digit early
+find: \t\t\twhile (zeros < count && !digits[zeros]) {
+repl: \t\t\twhile (zeros + 1 < count && !digits[zeros]) {
+
+mutant: dec-count-all
+what: decode: every zero digit counts, not only the leading ones
+find: \t\t\twhile (zeros < count && !digits[zeros]) {\n\t\t\t\t++zeros;\n\t\t\t}
+repl: \t\t\tfor (std::size_t i = 0; i < count; ++i) zeros += !digits[i];
+
+mutant: dec-return-zero
+what: decode_value: returns no zero bytes
+find: \t\treturn block_size ? bits >> 3 : zeros;
+repl: \t\treturn block_size ? bits >> 3 : 0;
+
+mutant: dec-return-more
+what: decode_value: returns one zero byte too many
+find: \t\treturn block_size ? bits >> 3 : zeros;
+repl: \t\treturn block_size ? bits >> 3 : (zeros ? zeros + 1 : 0);
+
+mutant: dec-clear-missing
+what: decode: the result is not cleared before the zero bytes
+find: \t\t\t// Each leading zero digit is a zero byte; the number's bytes follow them.\n\t\t\tresult.clear();\n
+repl: \t\t\t// Each leading zero digit is a zero byte; the number's bytes follow them.\n
+
+mutant: dec-number-after
+what: decode: the bytes of the number come before the zero bytes
+find: \t\t\tif (nbytes) {\n\t\t\t\tresult.resize(nbytes, 0);\n\t\t\t}\n\t\t\tif (num) {\n\t\t\t\tnum.digits(result, 256);\n\t\t\t}
+repl: \t\t\tif (num) {\n\t\t\t\tnum.digits(result, 256);\n\t\t\t}\n\t\t\tresult.resize(result.size() + nbytes, 0);
+
+# --- the flag gate
+
+mutant: gate-enc-always
+what: encode: the gate is always on
+find: \t\tif (flags & BaseX::leading_zeros) {\n\t\t\tstd::size_t zeros = 0;
+repl: \t\tif (true) {\n\t\t\tstd::size_t zeros = 0;
+
+mutant: gate-enc-never
+what: encode: the gate is always off
+find: \t\tif (flags & BaseX::leading_zeros) {\n\t\t\tstd::size_t zeros = 0;
+repl: \t\tif (false) {\n\t\t\tstd::size_t zeros = 0;
+
+mutant: gate-dec-count-always
+what: decode_value: the gate is always on
+find: \t\tif (flags & BaseX::leading_zeros) {\n\t\t\twhile (zeros < count
+repl: \t\tif (true) {\n\t\t\twhile (zeros < count
+
+mutant: gate-dec-count-never
+what: decode_value: the gate is always off
+find: \t\tif (flags & BaseX::leading_zeros) {\n\t\t\twhile (zeros < count
+repl: \t\tif (false) {\n\t\t\twhile (zeros < count
+
+mutant: gate-dec-result-always
+what: decode(Result&): the gate is always on
+find: \t\t} else if (flags & BaseX::leading_zeros) {\n\t\t\t// Each leading zero digit
+repl: \t\t} else if (true) {\n\t\t\t// Each leading zero digit
+
+mutant: gate-dec-result-never
+what: decode(Result&): the gate is always off
+find: \t\t} else if (flags & BaseX::leading_zeros) {\n\t\t\t// Each leading zero digit
+repl: \t\t} else if (false) {\n\t\t\t// Each leading zero digit
+
+mutant: gate-value-always
+what: encode_value: the empty text is always allowed
+find: \t\tif (block_size || (flags & BaseX::leading_zeros) || static_cast<bool>(num)) {
+repl: \t\tif (true) {
+
+mutant: gate-bitcoin-off
+what: Base58::bitcoin() without the flag
+find: BaseX encoder(BaseX::leading_zeros, "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+repl: BaseX encoder(0, "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+mutant: gate-ripple-off
+what: Base58::ripple() without the flag
+find: BaseX encoder(BaseX::leading_zeros, "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz"
+repl: BaseX encoder(0, "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz"
+
+mutant: gate-flickr-on
+what: Base58::flickr() with the flag
+find: BaseX encoder(0, "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ"
+repl: BaseX encoder(BaseX::leading_zeros, "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ"
+
+mutant: gate-bitcoinchk-on
+what: Base58::bitcoinchk() with the flag
+find: BaseX encoder(BaseX::with_checksum, "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+repl: BaseX encoder(BaseX::with_checksum | BaseX::leading_zeros, "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+mutant: gate-base58-on
+what: Base58::base58() with the flag
+find: BaseX encoder(0, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv"
+repl: BaseX encoder(BaseX::leading_zeros, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv"
+
+# --- the width of the count: runs of 255 zeros and more (test.cc runs 255 to 1000 of them)
+mutant: enc-count-u8
+what: encode: the count handed to encode_value is an unsigned char
+find: encode_value(result, rest ? uinteger_t(decoded + zeros, rest, 256) : uinteger_t(), 0, zeros);
+repl: encode_value(result, rest ? uinteger_t(decoded + zeros, rest, 256) : uinteger_t(), 0, static_cast<unsigned char>(zeros));
+
+mutant: enc-count-cap-255
+what: encode: the scan stops at 255 zero bytes
+find: while (zeros < decoded_size && !decoded[zeros]) {
+repl: while (zeros < decoded_size && zeros < 255 && !decoded[zeros]) {
+
+mutant: dec-count-cap-256
+what: decode: the scan stops at 256 zero digits
+find: while (zeros < count && !digits[zeros]) {
+repl: while (zeros < count && zeros < 256 && !digits[zeros]) {
+
+mutant: dec-return-u8
+what: decode_value: the count it returns is an unsigned char
+find: return block_size ? bits >> 3 : zeros;
+repl: return block_size ? bits >> 3 : static_cast<unsigned char>(zeros);
+
+# --- the shape of the count
+mutant: enc-all-zero-short
+what: encode: an input of only zero bytes writes one digit too few
+find: encode_value(result, rest ? uinteger_t(decoded + zeros, rest, 256) : uinteger_t(), 0, zeros);
+repl: encode_value(result, rest ? uinteger_t(decoded + zeros, rest, 256) : uinteger_t(), 0, rest ? zeros : zeros - 1);
+
+mutant: enc-one-zero-short
+what: encode: exactly one leading zero byte writes no digit
+find: encode_value(result, rest ? uinteger_t(decoded + zeros, rest, 256) : uinteger_t(), 0, zeros);
+repl: encode_value(result, rest ? uinteger_t(decoded + zeros, rest, 256) : uinteger_t(), 0, zeros == 1 ? 0 : zeros);
+
+mutant: enc-zeros-need-number
+what: encode_value: the zero digits are written only when the number has digits
+find: } else if (zeros) {
+repl: } else if (zeros && num) {
+
+mutant: dec-number-loses-digit
+what: decode_value: the number loses its first digit after the zeros
+find: result = uinteger_t::from_digits(digits + zeros, count - zeros, alphabet_base);
+repl: result = uinteger_t::from_digits(digits + zeros + (zeros && count > zeros), count - zeros - (zeros && count > zeros), alphabet_base);

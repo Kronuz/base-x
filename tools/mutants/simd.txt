@@ -1,0 +1,50 @@
+# The AArch64 table-lookup paths of encode and decode (the 16-at-a-time digit scan and map) and the
+# result handling around them. All but shift_inverted and decode_appends edit code inside the AArch64
+# blocks, so on another architecture those change no code and survive.
+header: base_x.hh
+tests: base_x base_x_golden
+
+mutant: tables_swapped
+what: the two 64-byte halves of the AArch64 lookup table are swapped
+find: lo.val[i] = vld1q_u8(_ord8 + 16 * i);\n\t\t\t\thi.val[i] = vld1q_u8(_ord8 + 64 + 16 * i);
+repl: lo.val[i] = vld1q_u8(_ord8 + 64 + 16 * i);\n\t\t\t\thi.val[i] = vld1q_u8(_ord8 + 16 * i);
+
+mutant: invalid_is_zero
+what: a byte that is not a digit maps to 0, not 0xff, in the 16-at-a-time scan
+find: : static_cast<unsigned char>(0xff);
+repl: : static_cast<unsigned char>(0);
+
+mutant: tail_unchecked
+what: the overlapping tail block of the scan is stored without checking its bytes
+find: if (vmaxvq_u8(r) < below) {\n\t\t\t\t\tvst1q_u8(d + n - 16, r);
+repl: if (true) {\n\t\t\t\t\tvst1q_u8(d + n - 16, r);
+
+mutant: block_unchecked
+what: a full block of the scan is not checked for non-digit bytes
+find: if (vmaxvq_u8(r) >= below) {\n\t\t\t\t\treturn i;
+repl: if (false) {\n\t\t\t\t\treturn i;
+
+mutant: no_tail_store
+what: the scan's overlapping tail block is not stored
+find: \t\t\tvst1q_u8(p + n - 16, last);\n
+repl: \t\t\t(void)last;\n
+
+mutant: shift_inverted
+what: decode shifts the digits' unused bits away only when there are none
+find: if (bits & 7) {
+repl: if (!(bits & 7)) {
+
+mutant: decode_appends
+what: decode into a non-empty result takes the append path
+find: if (result.empty()) {\n\t\t\tnum.digits(result, 256);
+repl: if (true) {\n\t\t\tnum.digits(result, 256);
+
+mutant: tail_offset
+what: the scan's tail block is stored one byte late
+find: vst1q_u8(d + n - 16, r);
+repl: vst1q_u8(d + n - 15, r);
+
+mutant: map_table_too_wide
+what: the table-lookup path is taken for alphabets of up to 128 characters
+find: if (alphabet_base <= 64 && n >= 16) {\n\t\t\tuint8x16x4_t table;
+repl: if (alphabet_base <= 128 && n >= 16) {\n\t\t\tuint8x16x4_t table;

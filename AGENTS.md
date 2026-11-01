@@ -25,6 +25,12 @@ Notes for agents and contributors working in this repo.
 - `bench/results/` — the raw `bench` output behind the README table, one directory per machine and date,
   each with a `README.md` (machine, compiler, versions, commits, and the `summarize.py` command that
   prints the table from the files).
+- `tools/mutate.py`, `tools/mutants/*.txt` — mutation testing. A mutants file lists edits to `base_x.hh`
+  (`leading_zeros`: the count of zero bytes and digits, the gates and the presets; `simd`: the AArch64
+  table-lookup paths), each with the CTest tests that should fail on it; the tool applies one edit at a
+  time to a temporary copy of the repository, builds and runs those tests through CMake, and reports
+  each mutant killed, survived or not applicable. The format, options and sets are in
+  `docs/MUTATION.md`.
 - `bench/ab.sh`, `bench/summarize.py` — `ab.sh` runs two `base_x.hh` (git refs or directories)
   over `bench.cc` interleaved, A B A B ..., or one against itself with `-a`, with the
   `uinteger_t.hh` directory from `-u`; `summarize.py` prints the best time per row, A against
@@ -44,7 +50,8 @@ vendored here.
 - `README.md` — what it is, install, quick start.
 - `docs/API.md` — the API reference, the alphabet catalog, and caveats;
   `docs/base-x.d2` is the README diagram's source. `docs/BENCHMARKING.md` — what `bench.cc`
-  measures, how to reproduce the README table, and the A/A and A/B protocol.
+  measures, how to reproduce the README table, and the A/A and A/B protocol. `docs/MUTATION.md` — the
+  mutation testing tool and its mutants files.
 - `CMakeLists.txt` — the `base_x` target (alias `base_x::base_x`).
 - `ARCHITECTURE.md` — encoding scheme, encode and decode through uinteger_t's
   digit API, check/checksum/padding, complexity, and the measurements behind the table paths
@@ -185,7 +192,9 @@ googletest on the include path (see `tests/Makefile`).
 - Keep the scalar decode loop to one `_ord` lookup and one comparison per character: translation,
   case folding and every byte that is not a digit live in the table, and a rare byte leaves the loop.
 - A test proves a property only if a mutant of the code it guards fails it: break that code with one
-  edit (a flipped comparison, a skipped check) and watch the test fail.
+  edit (a flipped comparison, a skipped check) and watch the test fail. `tools/mutate.py` does that for
+  a file of edits (`tools/mutants/`, `docs/MUTATION.md`) and lists the mutants no test kills: run the set
+  of the code you change, and add a mutant for each branch you add.
 - Time a change with an A/A run first (the same build against itself, for the noise), then an
   interleaved A/B of `bench/bench.cc` on a quiet machine. Keep it only if it is faster by about 3% or
   more and by more than the A/A spread.
