@@ -1,0 +1,6 @@
+arm64
+Apple M1 Pro
+Apple clang version 21.0.0 (clang-2100.3.33.1)
+uinteger_t 6ba8ffa  base-x 9adf6bd
+17:04  up 16 days, 21:29, 3 users, load averages: 2.50 4.18 6.94
+17:19  up 16 days, 21:44, 3 users, load averages: 7.61 3.02 3.94

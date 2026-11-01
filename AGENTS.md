@@ -22,6 +22,9 @@ Notes for agents and contributors working in this repo.
   presets, and base58 against a classic byte-wise codec, libbase58 and Firedancer when
   built with `-DHAVE_LIBBASE58` / `-DHAVE_FD_BASE58` (build lines at the top of the file).
   Not in CTest: timings are not tests.
+- `bench/results/` — the raw `bench` output behind the README table, one directory per machine and date,
+  each with a `README.md` (machine, compiler, versions, commits, and the `summarize.py` command that
+  prints the table from the files).
 - `bench/ab.sh`, `bench/summarize.py` — `ab.sh` runs two `base_x.hh` (git refs or directories)
   over `bench.cc` interleaved, A B A B ..., or one against itself with `-a`, with the
   `uinteger_t.hh` directory from `-u`; `summarize.py` prints the best time per row, A against

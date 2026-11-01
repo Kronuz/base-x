@@ -8,6 +8,7 @@ How the README's base58 timings are produced and reproduced, and how to tell whe
 | `bench/bench.cc` | times encode and decode for the base58, base62, base64 and base16 presets, and base58 against other codecs |
 | `bench/ab.sh` | builds `bench.cc` against two versions of `base_x.hh` and runs them interleaved |
 | `bench/summarize.py` | reads their output: the best time per row, A against B, the README table |
+| `bench/results/` | the raw output behind the README table, one directory per machine and date |
 
 `ab.sh` is POSIX `sh` and `summarize.py` is Python 3 (standard library only); both run on macOS and
 Linux.
@@ -73,6 +74,14 @@ runs, with `base-x` the `enc bx` and `dec bx` columns, `into a string` the reuse
 use either alone. Run it on a quiet machine (see below). The README's numbers come from an Apple
 M1 Pro with Apple clang at `-O2`; other compilers, library versions and CPUs give other absolute
 times, and the ratios to the other codecs are the part that carries over.
+
+`bench/results/` holds the runs behind the README, one directory per machine and date:
+[`2026-10-31-apple-m1-pro`](../bench/results/2026-10-31-apple-m1-pro/) for the table and
+[`2026-10-31-intel-i9-9980hk`](../bench/results/2026-10-31-intel-i9-9980hk/) for the Intel
+paragraph. Each has the unedited `bench` output, the machine, compiler and commits, and the
+`summarize.py` command that prints the README table from the files. To record a measurement, copy
+the output directory there (its `host.txt` carries the machine and the commit) and add a
+`README.md` with the versions and the command; remove host names and paths first.
 
 Without `--readme`, `summarize.py out/readme` prints every row with its spread over the runs;
 `--sizes 32,64` and `--filter Base58::bitcoin` select rows, and `--stat median` takes the median

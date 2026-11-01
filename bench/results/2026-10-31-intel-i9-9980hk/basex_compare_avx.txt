@@ -1,0 +1,7 @@
+# base-x bench, best of 7 rounds of at least 10 ms; ns per call
+# Apple LLVM 17.0.0 (clang-1700.6.4.2)
+# comparisons: classic, libbase58, firedancer
+
+bytes    |    enc bx  bx reuse   classic    libb58  firedncr |    dec bx   classic    libb58  firedncr |  bx reuse
+32       |     144.9      97.0     756.5    1561.5      74.8 |     185.3     366.2     257.2      95.9 |     138.2
+64       |     245.6     200.7    3197.9    6341.9     185.3 |     274.4    1403.5     777.4     195.7 |     226.5
