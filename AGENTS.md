@@ -40,6 +40,7 @@ Notes for agents and contributors working in this repo.
   for a fixed-seed driver that CTest runs): strict presets answer to a model (Bitcoin's and Ripple's
   base58 with leading zero digits as zero bytes), the block-padded (RFC 4648)
   presets to a bit-level one, and every preset has to hold up and agree with itself.
+- `docs/TESTING.md`: which check catches what, the CI matrix, what to run before a change lands, and how the numbers are reproduced.
 - `CMakeLists.txt` — defines the `base_x` `INTERFACE` target (which fetches the
   `uinteger_t` dependency via FetchContent) and a `ctest` test.
 - `LICENSE` — MIT, Copyright (c) 2017,2019 German Mendez Bravo (Kronuz).

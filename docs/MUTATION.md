@@ -3,6 +3,7 @@
 A test proves a property only if breaking the code it guards makes it fail. `tools/mutate.py` checks
 that: it breaks the header one edit at a time, runs the tests that should notice, and reports the
 edits no test catches.
+[TESTING.md](TESTING.md) lists the tests and the other checks a change passes.
 
 ```sh
 nice -n 19 tools/mutate.py leading_zeros              # every mutant of tools/mutants/leading_zeros.txt

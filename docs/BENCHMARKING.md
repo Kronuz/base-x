@@ -2,6 +2,7 @@
 
 How the README's base58 timings are produced and reproduced, and how to tell whether a change to
 `base_x.hh` made the codec faster.
+The checks a change passes before it is timed are in [TESTING.md](TESTING.md).
 
 | file | what it does |
 |---|---|
