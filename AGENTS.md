@@ -48,8 +48,8 @@ The library depends on [uinteger_t](https://github.com/Kronuz/uinteger_t)
 (`base_x.hh` does `#include "uinteger_t.hh"`); it is fetched by CMake, not
 vendored here.
 - `README.md` — what it is, install, quick start.
-- `docs/API.md` — the API reference, the alphabet catalog, and caveats;
-  `docs/base-x.d2` is the README diagram's source. `docs/BENCHMARKING.md` — what `bench.cc`
+- `docs/API.md` — the API reference, the alphabet catalog, and caveats.
+  `docs/BENCHMARKING.md` — what `bench.cc`
   measures, how to reproduce the README table, and the A/A and A/B protocol. `docs/MUTATION.md` — the
   mutation testing tool and its mutants files.
 - `CMakeLists.txt` — the `base_x` target (alias `base_x::base_x`).
