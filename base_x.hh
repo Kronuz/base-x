@@ -153,6 +153,7 @@ public:
 	static constexpr int with_checksum = (1 << 1);
 	static constexpr int with_check =    (1 << 2);
 	static constexpr int block_padding = (1 << 3);
+	static constexpr int leading_zeros = (1 << 4);  // each leading zero byte is a leading zero digit, as in Bitcoin's base58
 
 	template <std::size_t alphabet_size1, std::size_t extended_size1, std::size_t padding_size1, std::size_t translate_size1>
 	constexpr BaseX(int flgs, const char (&alphabet)[alphabet_size1], const char (&extended)[extended_size1], const char (&padding_string)[padding_size1], const char (&translate)[translate_size1]) :
@@ -215,6 +216,8 @@ public:
 				cp = ncp;
 			}
 		}
+		// block_padding already writes a digit for every bit of every byte, leading zero bytes included.
+		assert(!((flags & BaseX::block_padding) && (flags & BaseX::leading_zeros)));
 		// decode finds the padding character by the out-of-alphabet sentinel, so it must not be a digit or ignored.
 		assert(!padding_size || _ord[(unsigned char)padding] == size);
 		for (int c = 0; c < 128; ++c) {
@@ -244,10 +247,12 @@ BASEX_PRIVATE:
 
 	// Appends the text of `input`, the value of `nbytes` bytes (it fits in them), to result. A block-padded
 	// alphabet writes a digit for every bit of those bytes, so a leading zero byte is a leading zero digit
-	// and no bytes are no text; the other alphabets write the number and ignore `nbytes`. Throws
+	// and no bytes are no text; one with leading_zeros writes `zeros` zero digits ahead of the number (the
+	// caller counts the leading zero bytes) and, with no zeros and no number, no text; the other alphabets
+	// write the number and ignore `nbytes` and `zeros` (zero is a lone zero digit there). Throws
 	// std::length_error for a block-padded alphabet when 8 nbytes does not fit a size_t.
 	template <typename Result>
-	void encode_value(Result& result, const uinteger_t& input, std::size_t nbytes) const {
+	void encode_value(Result& result, const uinteger_t& input, std::size_t nbytes, std::size_t zeros = 0) const {
 		std::size_t want = 0;  // the digit count the byte count implies, for a block-padded alphabet
 		std::size_t bp = 0;    // zero bits that fill the last digit
 		uinteger_t quotient;
@@ -258,7 +263,7 @@ BASEX_PRIVATE:
 			}
 		}
 		const uinteger_t& num = bp ? quotient : input;
-		if (block_size || static_cast<bool>(num)) {
+		if (block_size || (flags & BaseX::leading_zeros) || static_cast<bool>(num)) {
 			std::int64_t sum = 0;
 			const auto first = result.size();
 			if (num) {
@@ -270,6 +275,10 @@ BASEX_PRIVATE:
 				if (have < want) {
 					result.insert(result.begin() + first, want - have, 0);
 				}
+			} else if (zeros) {
+				// Only a leading_zeros alphabet writes them (zero is a lone digit in the others, below). They count
+				// in the padding and the checksum like any other digit, and decode counts them back.
+				result.insert(result.begin() + first, zeros, 0);
 			}
 			const auto count = result.size() - first;
 			auto ptr = result.data() + first;
@@ -307,10 +316,11 @@ BASEX_PRIVATE:
 
 public:
 	// Appends the text of the number. A block-padded alphabet writes the bytes of its shortest
-	// byte string, one byte for zero (as digits(result, 256) does).
+	// byte string, one byte for zero (as digits(result, 256) does); so does one with leading_zeros:
+	// zero is one zero byte, a zero digit, and any other number has no leading zero byte.
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
 	void encode(Result& result, const uinteger_t& input) const {
-		encode_value(result, input, block_bytes<std::size_t>(input.bits()));
+		encode_value(result, input, block_bytes<std::size_t>(input.bits()), static_cast<bool>(input) ? 0 : 1);
 	}
 
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
@@ -320,9 +330,19 @@ public:
 		return result;
 	}
 
+	// Appends the text of the bytes. An alphabet with leading_zeros writes a zero digit for every leading
+	// zero byte and the number of the rest after them (no bytes, no text); one with block_padding writes
+	// the digits of every bit; the others write the number, and no bytes throw (there is no number).
 	template <typename Result = std::string, typename = std::enable_if_t<uinteger_t::is_result<Result>::value>>
 	void encode(Result& result, const unsigned char* decoded, std::size_t decoded_size) const {
-		if (!decoded_size && block_size) {
+		if (flags & BaseX::leading_zeros) {
+			std::size_t zeros = 0;
+			while (zeros < decoded_size && !decoded[zeros]) {
+				++zeros;
+			}
+			const std::size_t rest = decoded_size - zeros;
+			encode_value(result, rest ? uinteger_t(decoded + zeros, rest, 256) : uinteger_t(), 0, zeros);
+		} else if (!decoded_size && block_size) {
 			encode_value(result, uinteger_t(), 0);  // no bytes, no digits
 		} else {
 			encode_value(result, uinteger_t(decoded, decoded_size, 256), decoded_size);
@@ -374,7 +394,8 @@ public:
 
 BASEX_PRIVATE:
 	// Sets result to the number in the text and returns how many bytes it stands for in a block-padded
-	// alphabet, one for every 8 bits of digits (0 in the others). Throws, leaving result as it was, on bad text.
+	// alphabet, one for every 8 bits of digits, or how many leading zero bytes in one with leading_zeros,
+	// one for every leading zero digit (0 in the others). Throws, leaving result as it was, on bad text.
 	std::size_t decode_value(uinteger_t& result, const char* encoded, std::size_t encoded_size) const {
 		std::int64_t sum = 0;
 		std::int64_t sumsz = 0;
@@ -431,7 +452,14 @@ BASEX_PRIVATE:
 			}
 		}
 		const std::size_t bits = count * block_size;  // zero in an alphabet without block padding
-		result = uinteger_t::from_digits(digits, count, alphabet_base);
+		// The leading zero digits (ignored characters are not in digits): each stands for a zero byte.
+		std::size_t zeros = 0;
+		if (flags & BaseX::leading_zeros) {
+			while (zeros < count && !digits[zeros]) {
+				++zeros;
+			}
+		}
+		result = uinteger_t::from_digits(digits + zeros, count - zeros, alphabet_base);
 
 		if (bits & 7) {
 			result >>= (bits & 7);
@@ -464,7 +492,7 @@ BASEX_PRIVATE:
 				throw std::invalid_argument("Error: Invalid checksum");
 			}
 		}
-		return bits >> 3;
+		return block_size ? bits >> 3 : zeros;
 	}
 
 public:
@@ -484,6 +512,13 @@ public:
 			}
 			if (result.size() < nbytes) {
 				result.insert(result.begin(), nbytes - result.size(), 0);
+			}
+		} else if (flags & BaseX::leading_zeros) {
+			// Each leading zero digit is a zero byte; the number's bytes follow them.
+			result.clear();
+			result.resize(nbytes, 0);
+			if (num) {
+				num.digits(result, 256);
 			}
 		} else if (result.empty()) {
 			num.digits(result, 256);  // appends to nothing: the bytes go straight into the result
@@ -689,7 +724,7 @@ struct Base58 {
 		return encoder;
 	}
 	static const BaseX& bitcoin() {
-		static constexpr BaseX encoder(0, "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "", "", "");
+		static constexpr BaseX encoder(BaseX::leading_zeros, "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "", "", "");
 		return encoder;
 	}
 	static const BaseX& bitcoinchk() {
@@ -697,7 +732,7 @@ struct Base58 {
 		return encoder;
 	}
 	static const BaseX& ripple() {
-		static constexpr BaseX encoder(0, "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz", "", "", "");
+		static constexpr BaseX encoder(BaseX::leading_zeros, "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz", "", "", "");
 		return encoder;
 	}
 	static const BaseX& ripplechk() {

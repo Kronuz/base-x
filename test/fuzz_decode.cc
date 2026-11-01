@@ -8,7 +8,9 @@
 // padding, check, checksum or ignored characters) answers to a model that shares nothing with the
 // library: text of alphabet characters decodes to what byte-wise schoolbook conversion gives, any
 // other text throws std::invalid_argument naming its first character outside the alphabet and its
-// position. A block-padded preset (the RFC 4648 ones) answers to a bit-level model: the digits' bits
+// position. A preset with leading_zeros (Bitcoin's and Ripple's base58) reads each leading zero digit as
+// a zero byte and no digits as no bytes, and the bytes of a text it accepts encode back to that text. A
+// block-padded preset (the RFC 4648 ones) answers to a bit-level model: the digits' bits
 // cut into whole bytes, text after the padding rejected. Every preset must not crash or read outside the
 // text, and a value it decodes must encode back to a text that decodes to the same value.
 #include <cstdint>
@@ -44,8 +46,9 @@ constexpr std::size_t preset_count = sizeof(presets) / sizeof(presets[0]);
 struct Model {
 	std::string alphabet;  // digit -> character
 	unsigned base = 0;
+	bool keep = false;     // leading_zeros: a leading zero digit is a zero byte, and no digits no bytes
 
-	explicit Model(const BaseX& enc) {
+	Model(const BaseX& enc, bool leading_zeros) : keep(leading_zeros) {
 		for (unsigned v = 0;; ++v) {
 			const std::string one = enc.encode(uinteger_t(v));
 			if (v && one.size() > 1) {
@@ -57,9 +60,11 @@ struct Model {
 	}
 
 	std::string decode(const std::string& text) const {
+		std::size_t zeros = 0;
+		while (keep && zeros < text.size() && text[zeros] == alphabet[0]) ++zeros;
 		std::vector<unsigned> bytes;  // least significant first
-		for (char c : text) {
-			unsigned carry = static_cast<unsigned>(alphabet.find(c));
+		for (std::size_t i = zeros; i < text.size(); ++i) {
+			unsigned carry = static_cast<unsigned>(alphabet.find(text[i]));
 			for (auto& b : bytes) {
 				carry += b * base;
 				b = carry & 255u;
@@ -67,9 +72,9 @@ struct Model {
 			}
 			for (; carry; carry >>= 8) bytes.push_back(carry & 255u);
 		}
-		std::string out;
+		std::string out(zeros, '\0');
 		for (auto i = bytes.size(); i--;) out.push_back(static_cast<char>(bytes[i]));
-		return out.empty() ? std::string(1, '\0') : out;
+		return out.empty() && !keep ? std::string(1, '\0') : out;
 	}
 };
 
@@ -121,7 +126,9 @@ const BlockModel block_models[] = {
 const Model& model_of(std::size_t index) {
 	static std::vector<Model> models = [] {
 		std::vector<Model> m;
-		for (std::size_t i = 0; i < plain_presets; ++i) m.emplace_back(presets[i]());
+		for (std::size_t i = 0; i < plain_presets; ++i) {
+			m.emplace_back(presets[i](), presets[i] == Base58::bitcoin || presets[i] == Base58::ripple);
+		}
 		return m;
 	}();
 	return models[index];
@@ -184,6 +191,7 @@ void run(std::size_t index, const std::string& text) {
 			check(accepted, "a text of alphabet characters was rejected");
 			check(bytes == model.decode(text), "decode differs from the model");
 			check(valid, "is_valid rejects a text decode accepts");
+			if (model.keep) check(enc.encode(bytes) == text, "a text of a leading_zeros preset does not encode back from its bytes");
 		} else {
 			check(!accepted, "a text with a character outside the alphabet was accepted");
 			// what() is a C string, so a NUL byte in the message ends it there.
@@ -239,6 +247,8 @@ int main(int argc, char** argv) {
 			for (std::size_t i = rng() % 11; i < raw.size(); ++i) raw[i] = static_cast<char>(rng());
 			text = presets[index]().encode(raw);
 		}
+		// A run of zero digits in front, so the leading zero scan of every preset gets texts to read.
+		if (rng() % 3 == 0) text.insert(0, rng() % 8, presets[index]().encode(uinteger_t(0))[0]);
 		const int edits = static_cast<int>(rng() % 4);
 		for (int e = 0; e < edits && !text.empty(); ++e) {
 			switch (rng() % 4) {

@@ -27,6 +27,51 @@ static const Factory all_presets[] = {
 	Base64::rfc4648, Base64::rfc4648url, Base64::rfc4648url_unpadded, Base66::base66, Base66::base66chk,
 };
 
+// Base conversion by byte-wise schoolbook arithmetic over a digit-to-character table, sharing nothing
+// with the library. By default the text is the number's alone (one zero digit for no digits, one zero
+// byte for no bytes); with `keep` it is the leading_zeros convention: each leading zero byte is a leading
+// zero digit and each leading zero digit a zero byte, so no bytes is no text and no text no bytes.
+struct Schoolbook {
+	std::string alphabet;  // digit -> character
+	unsigned base = 0;
+	bool keep = false;
+
+	std::string encode(const std::string& bytes) const {
+		std::size_t zeros = 0;
+		while (keep && zeros < bytes.size() && !bytes[zeros]) ++zeros;
+		std::vector<unsigned> digits;  // least significant first
+		for (std::size_t i = zeros; i < bytes.size(); ++i) {
+			unsigned carry = static_cast<unsigned char>(bytes[i]);
+			for (auto& d : digits) {
+				carry += d * 256u;
+				d = carry % base;
+				carry /= base;
+			}
+			for (; carry; carry /= base) digits.push_back(carry % base);
+		}
+		std::string out(zeros, alphabet[0]);
+		for (auto i = digits.size(); i--;) out.push_back(alphabet[digits[i]]);
+		return out.empty() && !keep ? std::string(1, alphabet[0]) : out;
+	}
+	std::string decode(const std::string& text) const {
+		std::size_t zeros = 0;
+		while (keep && zeros < text.size() && text[zeros] == alphabet[0]) ++zeros;
+		std::vector<unsigned> bytes;  // least significant first
+		for (std::size_t i = zeros; i < text.size(); ++i) {
+			unsigned carry = static_cast<unsigned>(alphabet.find(text[i]));
+			for (auto& b : bytes) {
+				carry += b * base;
+				b = carry & 255u;
+				carry >>= 8;
+			}
+			for (; carry; carry >>= 8) bytes.push_back(carry & 255u);
+		}
+		std::string out(zeros, '\0');
+		for (auto i = bytes.size(); i--;) out.push_back(static_cast<char>(bytes[i]));
+		return out.empty() && !keep ? std::string(1, '\0') : out;
+	}
+};
+
 int main() {
 	// base58 round-trip on an ASCII payload.
 	{
@@ -227,14 +272,15 @@ int main() {
 
 	// A1: a parsed byte string of 8 or more zero bytes then 0x01 is the number 1. It once kept a zero limb
 	// (it compared unequal to 1, had 65 bits, and sized an RFC 4648 text from them), and base58 never showed
-	// it. The numeric alphabets write 1 whatever the zero count; the RFC presets write every byte (Python).
+	// it. The numeric alphabets write 1 whatever the zero count, the leading_zeros presets write a zero digit for
+	// each zero byte before the 1, and the RFC presets write every byte (Python).
 	{
 		for (std::size_t zeros = 0; zeros <= 20; ++zeros) {
 			std::string bytes(zeros, '\0');
 			bytes.push_back('\x01');
 			const uinteger_t value(bytes.data(), bytes.size(), 256);
 			assert(value == 1 && !(value > 1) && value.bits() == 1);
-			assert(Base58::bitcoin().encode(bytes) == "2" && Base58::bitcoin().encode(value) == "2");
+			assert(Base58::bitcoin().encode(bytes) == std::string(zeros, '1') + "2" && Base58::bitcoin().encode(value) == "2");
 			assert(Base58::base58().encode(bytes) == "1" && Base62::base62().encode(bytes) == "1");
 			assert(Base16::base16().encode(bytes) == "1" && Base64::base64().encode(bytes) == "B");
 			assert(Base64::rfc4648().encode(value) == "AQ==" && Base16::rfc4648().encode(value) == "01");
@@ -580,40 +626,6 @@ int main() {
 	// (the table-lookup block) and a bad character at every position of them. This runs with and
 	// without BASEX_NO_SIMD in CTest, so the vector and the scalar paths answer to the same model.
 	{
-		struct Model {
-			std::string alphabet;  // digit -> character
-			unsigned base;
-			std::string encode(const std::string& bytes) const {
-				std::vector<unsigned> digits;  // least significant first
-				for (unsigned char byte : bytes) {
-					unsigned carry = byte;
-					for (auto& d : digits) {
-						carry += d * 256u;
-						d = carry % base;
-						carry /= base;
-					}
-					for (; carry; carry /= base) digits.push_back(carry % base);
-				}
-				std::string out;
-				for (auto i = digits.size(); i--;) out.push_back(alphabet[digits[i]]);
-				return out.empty() ? std::string(1, alphabet[0]) : out;
-			}
-			std::string decode(const std::string& text) const {
-				std::vector<unsigned> bytes;  // least significant first
-				for (char c : text) {
-					unsigned carry = static_cast<unsigned>(alphabet.find(c));
-					for (auto& b : bytes) {
-						carry += b * base;
-						b = carry & 255u;
-						carry >>= 8;
-					}
-					for (; carry; carry >>= 8) bytes.push_back(carry & 255u);
-				}
-				std::string out;
-				for (auto i = bytes.size(); i--;) out.push_back(static_cast<char>(bytes[i]));
-				return out.empty() ? std::string(1, '\0') : out;
-			}
-		};
 		std::uint32_t seed = 12345;
 		auto next = [&seed] { seed = seed * 1664525u + 1013904223u; return seed >> 8; };
 		const Factory plain[] = {Base2::base2, Base8::base8, Base11::base11, Base16::base16, Base32::base32,
@@ -621,7 +633,8 @@ int main() {
 		                         Base59::base59, Base62::base62, Base62::inverted, Base64::base64, Base64::url, Base66::base66};
 		for (Factory make : plain) {
 			const BaseX& enc = make();
-			Model model;
+			Schoolbook model;
+			model.keep = &enc == &Base58::bitcoin() || &enc == &Base58::ripple();  // the leading_zeros presets
 			for (unsigned v = 0;; ++v) {
 				const std::string one = enc.encode(uinteger_t(v));
 				if (v && one.size() > 1) {
@@ -645,7 +658,7 @@ int main() {
 					if (shape == 2) bytes.assign(length, '\xff');
 					const std::string text = enc.encode(bytes);
 					assert(text == model.encode(bytes));
-					std::string value = bytes.substr(std::min(bytes.find_first_not_of('\0'), bytes.size() - 1));
+					const std::string value = model.keep ? bytes : bytes.substr(std::min(bytes.find_first_not_of('\0'), bytes.size() - 1));
 					assert(enc.decode(text) == model.decode(text));
 					assert(enc.decode(text) == value);
 					// A digit-only text with leading zero digits (the scan converts them like any other).
@@ -685,6 +698,237 @@ int main() {
 			bool threw = false;
 			try { enc.decode(out, bad.data(), bad.size()); } catch (const std::invalid_argument&) { threw = true; }
 			assert(threw && out == "keep");
+		}
+	}
+
+	// LZ: Bitcoin's base58 is the bytes as one big number plus a leading zero digit for each leading zero
+	// byte, and back. Base58::bitcoin() and Base58::ripple() have the leading_zeros flag; no other preset does.
+	// The vectors are Bitcoin Core's base58_encode_decode.json (MIT) and the XRP Ledger's addresses, which a
+	// reference written from the definition (no base-x code) agrees with.
+	{
+		auto from_hex = [](const char* hex) {
+			std::string bytes;
+			for (; hex[0] && hex[1]; hex += 2) bytes.push_back(static_cast<char>(std::stoi(std::string(hex, 2), nullptr, 16)));
+			return bytes;
+		};
+		auto throws = [](auto&& call) {
+			try { call(); } catch (const std::invalid_argument&) { return true; }
+			return false;
+		};
+		const std::string btc_alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+		const std::string xrp_alphabet = "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz";
+		const BaseX& btc = Base58::bitcoin();
+		const BaseX& xrp = Base58::ripple();
+
+		// Which presets keep leading zero bytes as zero digits: the two, and not the numeric ones. (The RFC 4648
+		// presets keep them too, as a block of bits: they are told apart by their factories.)
+		auto is_block = [](Factory make) {
+			return make == Base16::rfc4648 || make == Base32::rfc4648 || make == Base32::rfc4648hex ||
+			       make == Base64::rfc4648 || make == Base64::rfc4648url || make == Base64::rfc4648url_unpadded;
+		};
+		auto keeps_zeros = [](const BaseX& enc) { return enc.encode(std::string_view("\0\x01", 2)) != enc.encode(std::string_view("\x01", 1)); };
+		for (Factory make : all_presets) {
+			if (!is_block(make)) assert(keeps_zeros(make()) == (make == Base58::bitcoin || make == Base58::ripple));
+		}
+		struct Vector { const char* hex; const char* text; };
+		static const Vector core[] = {
+			{"", ""},
+			{"61", "2g"},
+			{"626262", "a3gV"},
+			{"636363", "aPEr"},
+			{"73696d706c792061206c6f6e6720737472696e67", "2cFupjhnEsSn59qHXstmK2ffpLv2"},
+			{"00eb15231dfceb60925886b67d065299925915aeb172c06647", "1NS17iag9jJgTHD1VXjvLCEnZuQ3rJDE9L"},
+			{"516b6fcd0f", "ABnLTmg"},
+			{"bf4f89001e670274dd", "3SEo3LWLoPntC"},
+			{"572e4794", "3EFU7m"},
+			{"ecac89cad93923c02321", "EJDM8drfXA6uyA"},
+			{"10c8511e", "Rt5zm"},
+			{"00000000000000000000", "1111111111"},
+			{"000111d38e5fc9071ffcd20b4a763cc9ae4f252bb4e48fd66a835e252ada93ff480d6dd43dc62a641155a5",
+			 "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"},
+		};
+		for (const Vector& v : core) {
+			const std::string bytes = from_hex(v.hex);
+			assert(btc.encode(bytes) == v.text);
+			assert(btc.decode(v.text) == bytes);
+			assert(btc.is_valid(v.text));
+			// Ripple's alphabet is a permutation of Bitcoin's: the text is Bitcoin's, a character at a time.
+			std::string mapped;
+			for (const char* c = v.text; *c; ++c) mapped.push_back(xrp_alphabet[btc_alphabet.find(*c)]);
+			assert(xrp.encode(bytes) == mapped && xrp.decode(mapped) == bytes && xrp.is_valid(mapped));
+		}
+		// XRPL addresses: a type byte and the account id, then four checksum bytes. The account id of all
+		// zeros is twenty-one 'r' and a checksum.
+		static const Vector xrpl[] = {
+			{"00000000000000000000000000000000000000000094a00911", "rrrrrrrrrrrrrrrrrrrrrhoLvTp"},
+			{"0000000000000000000000000000000000000000019d35b5b9", "rrrrrrrrrrrrrrrrrrrrBZbvji"},
+			{"00b5f762798a53d543a014caf8b297cff8f2f937e8bf32ba9f", "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh"},
+		};
+		for (const Vector& v : xrpl) {
+			assert(xrp.encode(from_hex(v.hex)) == v.text && xrp.decode(v.text) == from_hex(v.hex));
+		}
+
+		// Every form of encode and decode.
+		const std::string abc("\0\0abc", 5);
+		const std::string zeros2("\0\0", 2);
+		assert(btc.encode(abc) == "11ZiCa" && btc.encode(std::string_view(abc)) == "11ZiCa");
+		assert(btc.encode(abc.data(), abc.size()) == "11ZiCa");
+		assert(btc.encode(reinterpret_cast<const unsigned char*>(abc.data()), abc.size()) == "11ZiCa");
+		assert(btc.decode("11ZiCa") == abc && btc.decode("11ZiCa", 6) == abc);
+		assert(btc.decode(std::string_view("11ZiCa")) == abc);
+		assert(btc.encode("abc") == "ZiCa");  // no leading zero byte: the text of the number
+
+		// All zeros, no bytes, and runs past the 256-digit stack buffer of decode.
+		assert(btc.encode(zeros2) == "11" && btc.decode("11") == zeros2);
+		assert(xrp.encode(zeros2) == "rr" && xrp.decode("rr") == zeros2);
+		assert(btc.encode(std::string(1, '\0')) == "1" && btc.decode("1") == std::string(1, '\0'));
+		assert(btc.encode(std::string()).empty() && btc.decode("").empty() && xrp.encode(std::string()).empty() && xrp.decode("").empty());
+		assert(btc.encode(std::string_view()).empty() && btc.encode(static_cast<const char*>(nullptr), 0).empty() && btc.decode(nullptr, 0).empty());
+		assert(btc.is_valid("") && btc.is_valid("1") && btc.is_valid("11") && !btc.is_valid("0") && !btc.is_valid("1l"));
+		for (std::size_t n : {0u, 1u, 2u, 7u, 8u, 9u, 255u, 256u, 257u, 258u, 300u, 1000u}) {
+			assert(btc.encode(std::string(n, '\0')) == std::string(n, '1') && btc.decode(std::string(n, '1')) == std::string(n, '\0'));
+			assert(xrp.encode(std::string(n, '\0')) == std::string(n, 'r') && xrp.decode(std::string(n, 'r')) == std::string(n, '\0'));
+			// A tail that is not zero: the zeros come back in front of it.
+			assert(btc.decode(std::string(n, '1') + "2g") == std::string(n, '\0') + "a");
+			assert(btc.encode(std::string(n, '\0') + "a") == std::string(n, '1') + "2g");
+		}
+
+		// A number has no leading zero bytes: zero is one zero digit, and the number readers drop them.
+		assert(btc.encode(uinteger_t(0)) == "1" && btc.encode(uinteger_t(1)) == "2" && btc.encode(uinteger_t(58)) == "21");
+		assert(xrp.encode(uinteger_t(0)) == "r" && xrp.encode(uinteger_t(1)) == "p" && xrp.encode(uinteger_t(58)) == "pr");
+		const std::string one("\0\0\x01", 3);
+		assert(btc.encode(uinteger_t(one.data(), one.size(), 256)) == "2" && btc.encode(one) == "112");
+		uinteger_t number(9);
+		btc.decode(number, "112", 3);
+		assert(number == 1);
+		btc.decode(number, "11", 2);
+		assert(number == 0);
+		assert(btc.decode<unsigned>("112") == 1 && btc.decode<unsigned>("11") == 0 && btc.decode<unsigned>("") == 0);
+		assert(btc.decode<uinteger_t>("112") == 1 && xrp.decode<unsigned>("rrp") == 1);
+
+		// Decoding into a Result replaces what it holds, and leaves it alone for a bad text.
+		std::string out = "stale";
+		btc.decode(out, "11ZiCa", 6);
+		assert(out == abc);
+		btc.decode(out, "", 0);
+		assert(out.empty());
+		out = "keep";
+		assert(throws([&] { btc.decode(out, "11\x01", 3); }) && out == "keep");
+		assert(throws([&] { btc.decode(out, "110", 3); }) && out == "keep");  // '0' is not in the alphabet
+		std::vector<unsigned char> bytes(4, 9);
+		btc.decode(bytes, "112g", 4);
+		assert((bytes == std::vector<unsigned char>{0, 0, 0x61}));
+		assert((btc.decode<std::vector<unsigned char>>("1111") == std::vector<unsigned char>(4, 0)));
+		assert((btc.encode<std::string>(std::string_view("\0\0\x61", 3)) == "112g"));
+
+		// Appending: the text written is what a fresh encode returns, whatever the buffer holds.
+		for (const BaseX* enc : {&btc, &xrp}) {
+			for (std::size_t zeros = 0; zeros <= 5; ++zeros) {
+				for (std::size_t length = 0; length <= 6; ++length) {
+					std::string payload(zeros, '\0');
+					for (std::size_t i = 0; i < length; ++i) payload.push_back(static_cast<char>(0x40 + i * 29));
+					const std::string fresh = enc->encode(payload);
+					for (std::size_t prefix = 0; prefix <= 3; ++prefix) {
+						std::string text(prefix, 'x');
+						enc->encode(text, payload.data(), payload.size());
+						assert(text == std::string(prefix, 'x') + fresh);
+					}
+				}
+			}
+		}
+
+		// The numeric alphabets keep writing the number alone, the same twin of Bitcoin's alphabet included.
+		const BaseX twin(0, "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "", "", "");
+		assert(twin.encode(abc) == "ZiCa" && twin.decode("11ZiCa") == "abc" && twin.decode("11") == std::string(1, '\0'));
+		assert(twin.encode(std::string(5, '\0') + "a") == "2g" && twin.decode("") == std::string(1, '\0'));
+		assert(throws([&] { twin.encode(std::string()); }));
+		for (Factory make : all_presets) {
+			if (is_block(make) || make == Base58::bitcoin || make == Base58::ripple) continue;
+			const BaseX& enc = make();
+			assert(enc.encode(abc) == enc.encode(std::string_view("abc")));
+			assert(enc.decode(enc.encode(abc)) == "abc");
+		}
+		{
+			// decode_value reports the leading zero bytes of a text: one for each leading zero digit where
+			// the flag is set, none in the numeric alphabets (a block-padded one reports its bytes instead).
+			uinteger_t n;
+			assert(btc.decode_value(n, "11ab", 4) == 2 && xrp.decode_value(n, "rrab", 4) == 2);
+			assert(btc.decode_value(n, "11", 2) == 2 && btc.decode_value(n, "ab", 2) == 0 && btc.decode_value(n, "", 0) == 0);
+			assert(twin.decode_value(n, "11ab", 4) == 0 && Base58::flickr().decode_value(n, "11ab", 4) == 0);
+			assert(Base58::base58().decode_value(n, "00ab", 4) == 0 && Base64::rfc4648().decode_value(n, "AAAB", 4) == 3);
+		}
+
+		// Random bytes after zero to five leading zero bytes, of every length, against the model.
+		std::uint32_t seed = 4242;
+		auto next = [&seed] { seed = seed * 1664525u + 1013904223u; return seed >> 8; };
+		for (const BaseX* enc : {&btc, &xrp}) {
+			const std::string& alphabet = enc == &btc ? btc_alphabet : xrp_alphabet;
+			const Schoolbook model{alphabet, 58, true};
+			for (std::size_t zeros = 0; zeros <= 5; ++zeros) {
+				for (std::size_t length = 0; length <= 70; ++length) {
+					for (int round = 0; round < 3; ++round) {
+						std::string payload(zeros, '\0');
+						for (std::size_t i = 0; i < length; ++i) payload.push_back(static_cast<char>(next()));
+						if (round == 0 && length) payload[zeros] = static_cast<char>(1 + next() % 255);
+						const std::string text = enc->encode(payload);
+						std::size_t lead = 0;
+						while (lead < payload.size() && !payload[lead]) ++lead;
+						assert(text == model.encode(payload) && enc->decode(text) == payload && enc->is_valid(text));
+						assert(text.compare(0, lead, std::string(lead, alphabet[0])) == 0);
+						assert(text.size() == lead || text[lead] != alphabet[0]);
+						assert(model.decode(text) == payload);
+						// The number overload and decoding to a number read what follows the zeros.
+						uinteger_t value;
+						enc->decode(value, text.data(), text.size());
+						assert(lead == payload.size() || value == uinteger_t(payload.data() + lead, payload.size() - lead, 256));
+						assert(enc->encode(value) == (value ? text.substr(lead) : std::string(1, alphabet[0])));
+					}
+				}
+			}
+		}
+
+		// The flag with the other flags and with ignored characters, on alphabets of the owner's making.
+		// Padding, check and checksum cover the zero digits like any other digit.
+		const BaseX padded(BaseX::leading_zeros, "0123456789abcdefghijklmnopqrstuv", "", "====", "");
+		assert(padded.encode(std::string_view("\0\0\0", 3)) == "000=" && padded.decode("000=") == std::string("\0\0\0", 3));
+		assert(padded.encode(std::string_view("\0\0\0\0", 4)) == "0000" && padded.decode("0000") == std::string("\0\0\0\0", 4));
+		assert(padded.encode(one) == "001=" && padded.decode("001=") == one && padded.decode("001") == one);
+		assert(padded.encode(std::string()).empty() && padded.decode("").empty() && padded.decode("====").empty());
+		const BaseX checked(BaseX::leading_zeros | BaseX::with_check, "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "", "", "");
+		assert(checked.encode(one) == "1122" && checked.decode("1122") == one && checked.is_valid("1122"));
+		assert(checked.encode(zeros2) == "111" && checked.decode("111") == zeros2);
+		assert(checked.encode(std::string()) == "1" && checked.decode("1").empty());  // the check of no number is the zero digit
+		assert(throws([&] { checked.decode("1123"); }) && !throws([&] { checked.decode("1111"); }));  // the check of three zero digits is one
+		const BaseX summed(BaseX::leading_zeros | BaseX::with_checksum, "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", "", "", "");
+		assert(summed.encode(one) == "112w" && summed.decode("112w") == one && summed.is_valid("112w"));
+		assert(throws([&] { summed.decode("112x"); }) && !summed.is_valid("112x"));
+		assert(summed.encode(std::string()) == "1" && summed.decode("1").empty());
+		assert(summed.encode(zeros2) != summed.encode(std::string(1, '\0')) && summed.decode(summed.encode(zeros2)) == zeros2);
+		// Ignored characters and case before and between the leading zero digits.
+		const BaseX lower(BaseX::leading_zeros | BaseX::ignore_case, "abcdefghijklmnopqrstuvwxyz234567", "", "", " -");
+		assert(lower.encode(one) == "aab");
+		for (const char* text : {"aab", "AAB", "aAb", " -a-A b", "a  A-b", "--aab--", "-A-a-B"}) {
+			assert(lower.is_valid(text) && lower.decode(text) == one);
+		}
+		assert(lower.decode("- -b") == "\x01" && lower.decode("- -").empty() && lower.decode("-a-") == std::string(1, '\0'));
+		const BaseX alias(BaseX::leading_zeros, "0123456789abcdefghijklmnopqrstuvwxyz", "", "", " -0_");
+		assert(alias.decode("__a") == std::string("\0\0\x0a", 3) && alias.decode(" _ - 0_a") == std::string("\0\0\0\x0a", 4));
+		assert(alias.decode("a__") == alias.decode("a00") && alias.decode("a__") == "\x32\xa0");  // a zero digit after another is a digit
+		// The same for every flagged instance: zero to five leading zero bytes round-trip.
+		for (const BaseX* enc : {&padded, &checked, &summed, &lower, &alias}) {
+			for (std::size_t zeros = 0; zeros <= 5; ++zeros) {
+				for (std::size_t length = 0; length <= 40; ++length) {
+					std::string payload(zeros, '\0');
+					for (std::size_t i = 0; i < length; ++i) payload.push_back(static_cast<char>(next()));
+					const std::string text = enc->encode(payload);
+					assert(enc->is_valid(text) && enc->decode(text) == payload);
+					for (std::size_t prefix = 0; prefix <= 3; ++prefix) {
+						std::string appended(prefix, 'x');
+						enc->encode(appended, payload.data(), payload.size());
+						assert(appended == std::string(prefix, 'x') + text);
+					}
+				}
+			}
 		}
 	}
 
