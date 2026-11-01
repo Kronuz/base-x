@@ -77,6 +77,27 @@ and RFC 4648 padding.
   kept as leading characters (the `rfc4648()` presets do keep them).
 - ❌ Streaming data larger than memory: the whole value is converted at once.
 
+## ⚡ Performance
+
+Nanoseconds per base58 call on an Apple M1 Pro (Apple clang 21, `-O2`), the best of seven
+rounds of [`bench/bench.cc`](bench/bench.cc), against [Firedancer](https://github.com/firedancer-io/firedancer)'s
+fixed-size codec (32 and 64 bytes only) and [libbase58](https://github.com/bitcoin/libbase58).
+`encode` and `decode` return a new `std::string`; the "into a string" column writes into one
+string that keeps its capacity, as the other codecs write into a caller's buffer.
+
+| bytes | operation | base-x | into a string | Firedancer | libbase58 |
+|---:|---|---:|---:|---:|---:|
+| 32 | encode | 74.3 | 52.0 | 48.5 | 2,086 |
+| 32 | decode | 71.6 | 51.6 | 63.3 | 496 |
+| 64 | encode | 134 | 114 | 112 | 9,300 |
+| 64 | decode | 98.2 | 78.2 | 198 | 1,749 |
+| 256 | encode | 806 | 774 | - | 159,990 |
+| 256 | decode | 537 | 507 | - | 14,182 |
+
+On an Intel Core i9-9980HK (Apple clang 17, same flags) base-x encodes in about twice
+Firedancer's time (32 bytes: 144 ns against 70) and decodes 64 bytes in about the same time
+(277 ns against 287).
+
 ## 📚 Documentation
 
 - [docs/API.md](docs/API.md): `encode`, `decode`, `is_valid`, every built-in
