@@ -79,8 +79,9 @@ googletest on the include path (see `tests/Makefile`).
   the constructor non-`constexpr`.
 - Base conversion is not in this repo: `encode` calls `uinteger_t::digits()` and
   `decode` calls `uinteger_t::from_digits()`, and base-x only maps digits through
-  `_chr`/`_ord`. Speedups to the conversion belong in uinteger_t; bump the pin in
-  `CMakeLists.txt` when base-x needs a new uinteger_t API.
+  `_chr`/`_ord`. Speedups to the conversion belong in uinteger_t (a conversion loop here
+  would copy the library's and drift from it); bump the pin in `CMakeLists.txt` when base-x
+  needs a new uinteger_t API.
 - `_ord8` is `_ord` for the 128 ASCII bytes as bytes (the digit, 0xff for any other); the 16-at-a-time
   scan reads it and the scalar loop in `decode` stays the only code that classifies a byte that is not a
   digit. Both table-lookup paths are for alphabets of up to 64 characters on AArch64;
@@ -150,6 +151,19 @@ googletest on the include path (see `tests/Makefile`).
   change, and read the diff of the file: each changed line is a stored text that changes.
 - `Base58::dubaluchk()`'s alphabet and `Base64`'s `rfc4648url_unpadded()` came
   from the Xapiand sync; they are intentional, not stray edits.
+
+## Rules of thumb
+
+- A change to any preset's output is a format change: users store the encoded text (Xapiand stores
+  some). Before landing, encode the same inputs with every preset on master and on the branch and
+  compare the text.
+- Keep the scalar decode loop to one `_ord` lookup and one comparison per character: translation,
+  case folding and every byte that is not a digit live in the table, and a rare byte leaves the loop.
+- A test proves a property only if a mutant of the code it guards fails it: break that code with one
+  edit (a flipped comparison, a skipped check) and watch the test fail.
+- Time a change with an A/A run first (the same build against itself, for the noise), then an
+  interleaved A/B of `bench/bench.cc` on a quiet machine. Keep it only if it is faster by about 3% or
+  more and by more than the A/A spread.
 
 ## Provenance
 
