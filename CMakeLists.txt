@@ -9,7 +9,7 @@ project(base_x LANGUAGES CXX)
 include(FetchContent)
 FetchContent_Declare(uinteger_t
   GIT_REPOSITORY https://github.com/Kronuz/uinteger_t.git
-  GIT_TAG        a383e370c3d5725b83a0e824ffa9ce3a33a009aa)
+  GIT_TAG        291dab8a886e26fca292576e0513d55e89d01f52)
 FetchContent_MakeAvailable(uinteger_t)
 
 add_library(base_x INTERFACE)
