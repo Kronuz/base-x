@@ -98,7 +98,8 @@ string that keeps its capacity, as the other codecs write into a caller's buffer
 
 On an Intel Core i9-9980HK (Apple clang 17, same flags) base-x encodes in about twice
 Firedancer's time (32 bytes: 144 ns against 70) and decodes 64 bytes in about the same time
-(277 ns against 287).
+(277 ns against 287). [docs/BENCHMARKING.md](docs/BENCHMARKING.md) reproduces this table with
+libbase58 and Firedancer and describes how to measure a change.
 
 ## 📚 Documentation
 

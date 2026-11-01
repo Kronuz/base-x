@@ -4,3 +4,4 @@ build/
 *.dSYM
 test/test
 test/test_*
+bench-out/

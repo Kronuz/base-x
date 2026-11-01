@@ -22,6 +22,11 @@ Notes for agents and contributors working in this repo.
   presets, and base58 against a classic byte-wise codec, libbase58 and Firedancer when
   built with `-DHAVE_LIBBASE58` / `-DHAVE_FD_BASE58` (build lines at the top of the file).
   Not in CTest: timings are not tests.
+- `bench/ab.sh`, `bench/summarize.py` — `ab.sh` runs two `base_x.hh` (git refs or directories)
+  over `bench.cc` interleaved, A B A B ..., or one against itself with `-a`, with the
+  `uinteger_t.hh` directory from `-u`; `summarize.py` prints the best time per row, A against
+  B with the spreads, or the README's base58 table (`--readme`). The reproduction commands and
+  the A/A and A/B protocol are in `docs/BENCHMARKING.md`.
 - `test/fuzz_decode.cc` — fuzz target for `decode` and `is_valid` (libFuzzer, or `-DFUZZ_STANDALONE`
   for a fixed-seed driver that CTest runs): strict presets answer to a model (Bitcoin's and Ripple's
   base58 with leading zero digits as zero bytes), the block-padded (RFC 4648)
@@ -35,7 +40,8 @@ The library depends on [uinteger_t](https://github.com/Kronuz/uinteger_t)
 vendored here.
 - `README.md` — what it is, install, quick start.
 - `docs/API.md` — the API reference, the alphabet catalog, and caveats;
-  `docs/base-x.d2` is the README diagram's source.
+  `docs/base-x.d2` is the README diagram's source. `docs/BENCHMARKING.md` — what `bench.cc`
+  measures, how to reproduce the README table, and the A/A and A/B protocol.
 - `CMakeLists.txt` — the `base_x` target (alias `base_x::base_x`).
 - `ARCHITECTURE.md` — encoding scheme, encode and decode through uinteger_t's
   digit API, check/checksum/padding, complexity.
