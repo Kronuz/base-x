@@ -39,6 +39,20 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   target_compile_definitions(base_x_fuzz_decode PRIVATE FUZZ_STANDALONE)
   add_test(NAME base_x_fuzz_decode COMMAND base_x_fuzz_decode 20000)
 
+  # The text every preset encodes for a fixed set of inputs, against test/golden/encode.txt, and that the
+  # file covers every preset of base_x.hh. The output of a preset is a stored format: regenerate the file
+  # (base_x_golden --generate) only for a deliberate change. The same on the scalar code.
+  add_executable(base_x_golden test/golden.cc)
+  target_link_libraries(base_x_golden PRIVATE base_x)
+  add_test(NAME base_x_golden COMMAND base_x_golden
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/golden/encode.txt ${CMAKE_CURRENT_SOURCE_DIR}/base_x.hh)
+
+  add_executable(base_x_golden_scalar test/golden.cc)
+  target_link_libraries(base_x_golden_scalar PRIVATE base_x)
+  target_compile_definitions(base_x_golden_scalar PRIVATE BASEX_NO_SIMD)
+  add_test(NAME base_x_golden_scalar COMMAND base_x_golden_scalar
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/golden/encode.txt ${CMAKE_CURRENT_SOURCE_DIR}/base_x.hh)
+
   # A runnable tour of the library (not a test): build & run ./build/base_x_demo
   add_executable(base_x_demo examples/demo.cc)
   target_link_libraries(base_x_demo PRIVATE base_x)

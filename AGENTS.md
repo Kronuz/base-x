@@ -10,6 +10,14 @@ Notes for agents and contributors working in this repo.
 - `test/test.cc` — smoke test: encode/decode round-trips across base16/base32/
   base58/base62/base64 plus the check and checksum paths, Bitcoin Core's and the XRP Ledger's base58
   vectors for the `leading_zeros` presets, and the RFC 4648 and block-size cases.
+- `test/golden.cc`, `test/golden/encode.txt` — the golden-output test. The file has one line per
+  case: the text each preset encodes for a fixed set of inputs (empty, zero bytes, runs of 0xff,
+  powers of 256, leading zero bytes, random bytes from a generator written in the test, `uinteger_t`
+  values, and long inputs kept as the length and hash of their text), or the exception type where
+  `encode` throws. CTest recomputes every line on the SIMD and the scalar code and compares, checks
+  that each text decodes back as its preset's semantics say, and checks that the test's preset table
+  and `base_x.hh` list the same presets. It reports its failures itself, so it checks under `NDEBUG`.
+  `base_x_golden --generate` writes the file.
 - `bench/bench.cc` — encode and decode timings for the base58, base62, base64 and base16
   presets, and base58 against a classic byte-wise codec, libbase58 and Firedancer when
   built with `-DHAVE_LIBBASE58` / `-DHAVE_FD_BASE58` (build lines at the top of the file).
@@ -45,8 +53,10 @@ cmake -B build && cmake --build build && ctest --test-dir build
 ```
 
 The smoke test prints `base-x OK: ...` and exits 0 on success. It uses `assert`,
-so build without `NDEBUG`. The full `tests/` suite needs googletest on the
-include path (see `tests/Makefile`).
+so build without `NDEBUG`. The golden test does not: it checks in a Release build too, and prints
+`base-x golden OK: ...` (standalone: `c++ -std=c++17 -I. -I<uinteger_t dir> test/golden.cc -o
+/tmp/golden && /tmp/golden test/golden/encode.txt base_x.hh`). The full `tests/` suite needs
+googletest on the include path (see `tests/Makefile`).
 
 ## Conventions
 
@@ -74,7 +84,7 @@ include path (see `tests/Makefile`).
 - `_ord8` is `_ord` for the 128 ASCII bytes as bytes (the digit, 0xff for any other); the 16-at-a-time
   scan reads it and the scalar loop in `decode` stays the only code that classifies a byte that is not a
   digit. Both table-lookup paths are for alphabets of up to 64 characters on AArch64;
-  `BASEX_NO_SIMD` turns them off, and CTest runs the test both ways.
+  `BASEX_NO_SIMD` turns them off, and CTest runs the test and the golden test both ways.
 - `block_size` is nonzero only when `block_padding` is set. The RFC 4648 presets
   depend on this; the plain alphabets must keep it zero.
 - `leading_zeros` works where bytes become digits and back: the byte `encode` counts the leading zero
@@ -103,6 +113,9 @@ include path (see `tests/Makefile`).
   cover `size = alphabet + extended`.
 - Add a matching round-trip (and, for vectors you can pin, an exact-output)
   assertion to `test/test.cc`. Prefer real vectors from `tests/tests.cc`.
+- A new preset also goes in the `presets` table of `test/golden.cc` (`keeps` is true when it has
+  `leading_zeros` or `block_padding`), and the golden file is regenerated; `base_x_golden` fails
+  while the table and `base_x.hh` list different presets.
 
 ## Traps
 
@@ -129,6 +142,12 @@ include path (see `tests/Makefile`).
   `Xapiand/src/`. When de-staling, diff against that copy; it is the more
   actively maintained one. Keep the MIT header intact when editing. (`uinteger_t`
   is its own repo now and is de-staled there, not here.)
+- The text of every preset is a stored format: Xapiand keeps `Base59::dubaluchk()` UUIDs,
+  `Base62::inverted()` node ids and `Base64::rfc4648url_unpadded()` document ids. An output change in
+  any preset (an alphabet, a flag, the conversion in `uinteger_t`) fails `base_x_golden` until
+  `test/golden/encode.txt` is regenerated with `build/base_x_golden --generate >
+  test/golden/encode.txt`, and it needs a `CHANGELOG.md` entry. Regenerate only for a deliberate
+  change, and read the diff of the file: each changed line is a stored text that changes.
 - `Base58::dubaluchk()`'s alphabet and `Base64`'s `rfc4648url_unpadded()` came
   from the Xapiand sync; they are intentional, not stray edits.
 
