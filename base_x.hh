@@ -516,7 +516,9 @@ public:
 		} else if (flags & BaseX::leading_zeros) {
 			// Each leading zero digit is a zero byte; the number's bytes follow them.
 			result.clear();
-			result.resize(nbytes, 0);
+			if (nbytes) {
+				result.resize(nbytes, 0);
+			}
 			if (num) {
 				num.digits(result, 256);
 			}
