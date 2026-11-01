@@ -64,7 +64,33 @@ base-x gets every speedup there:
 
 The kernel writes the digit bytes straight into `result` when it is a one-byte
 container, and the digits are never copied: `encode` maps them in place. The
-checksum sum is only accumulated for `with_checksum` alphabets.
+checksum sum is only accumulated for `with_checksum` alphabets. Building a short run of
+digits on the stack and appending it once measures slower than resizing the result in
+place: 2.7 ns more into a string and 11 ns into a vector.
+
+The table map starts at 16 digits and looks up the last 16 digits before it stores any
+block: that last block overlaps the ones before it when the count is not a multiple of 16,
+so a lookup after the stores would read characters as digits, and with 16 or more digits
+`n - 16` cannot wrap. Starting the map at 32 digits instead costs base62 4 ns at 16 to 20
+bytes and speeds up no 16-byte cell on an Apple M4 Pro, so it starts at 16. The decoding
+scan's `vmaxvq_u8(r) >= alphabet_base` test both finds a byte that is not a digit (0xff in
+`_ord8`) and rejects a wrong `_ord8` entry.
+
+The table paths are AArch64-only because the byte shuffle they need is not in the x86-64
+baseline: SSSE3's `pshufb` takes a target attribute and a run-time CPU check. On an Intel
+Core i9-9980HK a 32-byte base58 encode into a new string takes 142.5 ns:
+
+| piece | ns |
+|---|---:|
+| the `std::string` heap block (`malloc` and `free` are 37 ns there, 10 on an Apple M4 Pro) | 49 |
+| the conversion kernel (product 17.7, digit split about 19, zero strip 4.9) | 52 |
+| `digits()` resizing the string to its capacity and back | 14.6 |
+| the scalar digit map (a `pshufb` map would take about 3) | 11 |
+| bytes to limbs | 6.7 |
+
+Into a reused string it takes 96.4 ns. A 44-character result does not fit a 22-character
+small string, so the value forms pay the block on every platform (about 12 ns on Apple
+silicon); `encode(result, ...)` into a reused result does not.
 
 ## Padding, check, and checksum
 
@@ -137,6 +163,23 @@ packs bits directly for power-of-two bases (linear) and builds a chunk of digits
 SWAR multiplies, then folds four chunks per step, for the others. After that it reverses any block-padding shift and
 verifies the check and checksum if present.
 
+In order, `decode_value`:
+
+1. throws "too short" when the text is shorter than its check and checksum characters;
+2. collects the digits (the 16-at-a-time scan, then the scalar loop), skipping ignored
+   characters and stopping at the padding character; any other character throws;
+3. reads the rest after the padding, which may hold only padding and ignored characters;
+4. converts the digits after any leading zero digits (`leading_zeros`) and assigns the value
+   to its `uinteger_t` argument;
+5. undoes the block-padding shift;
+6. checks the check character (a digit or extended character, then its value) and the checksum
+   character (the same, then the sum), throwing on either.
+
+So the `uinteger_t` form leaves its argument holding the decoded value when a check or checksum
+fails; the forms that return bytes or an integral convert from a local value and leave their
+result alone. `count * block_size` can wrap a `size_t`, but `from_digits` throws
+`std::length_error` for any count that would before the product is used.
+
 The string-returning overloads turn the integer back into bytes with
 `uinteger_t::digits(result, 256)`, which writes the limbs big-endian into the result; a
 non-empty `result` is replaced, an empty one receives the bytes directly. In a block-padded
@@ -175,6 +218,13 @@ Let `n` be the input size in bytes and `m` the output length.
 - Translation and case-folding live in the `_ord` table, so decoding ambiguous
   or mixed-case input is a plain table lookup with no special-casing in the hot
   loop.
+- `leading_zeros` costs the presets that carry it 1 to 3 ns (1% to 3%) on an Apple M1 Pro, the
+  scans for zero bytes and zero digits; the alphabets without it skip both scans and pay nothing.
+  `decode` resizes for the zero bytes only when there are some (`if (nbytes)`), which keeps a
+  16-byte decode at 41.9 ns where an unconditional resize takes 43.7.
+- `bitcoinchk()` and `ripplechk()` keep the numeric text: their checksum is base-x's one
+  character, not Base58Check, and users store their text, which the flag would change for every
+  input with a leading zero byte.
 
 ## Limitations
 
@@ -189,3 +239,5 @@ Let `n` be the input size in bytes and `m` the output length.
 - `decode` throws on bad input. `is_valid` screens alphabet, padding and checksum
   without throwing but does not recompute a check character (`crockfordchk`), so it
   does not rule out every `decode` exception.
+- [docs/OPEN-WORK.md](docs/OPEN-WORK.md) lists the open work with the measurements behind it:
+  behavior to settle, the gaps on x86 and in decoding, and what the tests do not reach.
