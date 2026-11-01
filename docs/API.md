@@ -144,7 +144,7 @@ A selection of the built-in factories. Each lives on a struct named for its base
 |   64 | `Base64::rfc4648()`    | base64 with `=` block padding
 |   66 | `Base66::base66()`     | `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~`
 
-There are also `base11`, `base16chk`, `Base58::dubaluchk()`,
+There are also `base11`, `base16chk`, `Base59::dubaluchk()`,
 `Base64::rfc4648url()` / `rfc4648url_unpadded()`, and check twins for most of the
 above. See the factory structs at the bottom of `base_x.hh` for the full list.
 

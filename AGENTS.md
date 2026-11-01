@@ -164,8 +164,8 @@ googletest on the include path (see `tests/Makefile`).
 - `encode` does not compile for a `std::vector` result: the padding step calls `result.append`, in
   a run-time branch every `Result` compiles. `decode` into a vector works.
 - `decode_value` assigns its `uinteger_t` before it verifies the check and checksum characters, so
-  the `uinteger_t` form of `decode` leaves the value there when they fail; the byte and integral
-  forms decode into a local and stay clean. Keep that order in mind before moving a check.
+  every public form of `decode` passes it a local and assigns the caller's result only after it
+  returns; a failed check leaves the caller's value as it was. Keep it that way when adding a form.
 - The constructor's checks (the `leading_zeros` and `block_padding` pair, a padding character that
   is a digit) are asserts, so an alphabet built against them under `NDEBUG` encodes wrong text
   silently. An alphabet with both `block_padding` and `with_checksum` passes them and still fails its
@@ -181,7 +181,7 @@ googletest on the include path (see `tests/Makefile`).
   `test/golden/encode.txt` is regenerated with `build/base_x_golden --generate >
   test/golden/encode.txt`, and it needs a `CHANGELOG.md` entry. Regenerate only for a deliberate
   change, and read the diff of the file: each changed line is a stored text that changes.
-- `Base58::dubaluchk()`'s alphabet and `Base64`'s `rfc4648url_unpadded()` came
+- `Base59::dubaluchk()`'s alphabet and `Base64`'s `rfc4648url_unpadded()` came
   from the Xapiand sync; they are intentional, not stray edits.
 
 ## Rules of thumb
