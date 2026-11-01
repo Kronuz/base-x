@@ -70,11 +70,13 @@ and RFC 4648 padding.
 ## 🎯 When to use it
 
 - ✅ Short, readable, URL-safe identifiers, with the exact alphabet you choose.
+- ✅ Bitcoin and XRP Ledger base58 of arbitrary bytes: `Base58::bitcoin()` and `ripple()` write each
+  leading zero byte as a leading zero digit and read it back.
 - ❌ Interchange with `xxd` or a stock base64 library through the plain
   `base16()`/`base64()` alphabets: they encode the input as one integer. Use the
   `rfc4648()` presets.
-- ❌ Bitcoin-compatible base58check of arbitrary bytes: leading zero bytes are not
-  kept as leading characters (the `rfc4648()` presets do keep them).
+- ❌ Base58Check's checksum: there is no double SHA-256 here; the `*chk()` alphabets add one
+  checksum character of base-x's own.
 - ❌ Streaming data larger than memory: the whole value is converted at once.
 
 ## ⚡ Performance

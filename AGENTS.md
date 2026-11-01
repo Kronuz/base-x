@@ -8,13 +8,15 @@ Notes for agents and contributors working in this repo.
   (`Base2`, `Base8`, `Base11`, `Base16`, `Base32`, `Base36`, `Base58`, `Base59`,
   `Base62`, `Base64`, `Base66`). Header-only.
 - `test/test.cc` — smoke test: encode/decode round-trips across base16/base32/
-  base58/base62/base64 plus the check and checksum paths.
+  base58/base62/base64 plus the check and checksum paths, Bitcoin Core's and the XRP Ledger's base58
+  vectors for the `leading_zeros` presets, and the RFC 4648 and block-size cases.
 - `bench/bench.cc` — encode and decode timings for the base58, base62, base64 and base16
   presets, and base58 against a classic byte-wise codec, libbase58 and Firedancer when
   built with `-DHAVE_LIBBASE58` / `-DHAVE_FD_BASE58` (build lines at the top of the file).
   Not in CTest: timings are not tests.
 - `test/fuzz_decode.cc` — fuzz target for `decode` and `is_valid` (libFuzzer, or `-DFUZZ_STANDALONE`
-  for a fixed-seed driver that CTest runs): strict presets answer to a model, the block-padded (RFC 4648)
+  for a fixed-seed driver that CTest runs): strict presets answer to a model (Bitcoin's and Ripple's
+  base58 with leading zero digits as zero bytes), the block-padded (RFC 4648)
   presets to a bit-level one, and every preset has to hold up and agree with itself.
 - `CMakeLists.txt` — defines the `base_x` `INTERFACE` target (which fetches the
   `uinteger_t` dependency via FetchContent) and a `ctest` test.
@@ -75,6 +77,12 @@ include path (see `tests/Makefile`).
   `BASEX_NO_SIMD` turns them off, and CTest runs the test both ways.
 - `block_size` is nonzero only when `block_padding` is set. The RFC 4648 presets
   depend on this; the plain alphabets must keep it zero.
+- `leading_zeros` is read in two places, the byte `encode` (it counts the leading zero bytes and hands
+  `encode_value` the count) and `decode_value` (it counts the leading zero digits and returns the count,
+  which the `Result` form turns into zero bytes). The count goes in front of the digits before they are
+  mapped, so padding, checksum and check cover it. Alphabets without the flag ignore the count (the
+  `uinteger_t` form passes one for zero and nothing reads it) and skip the scans: their output is what
+  it was before the flag existed.
 - `decode` and the checked encoders throw `std::invalid_argument` on bad input,
   bad check digit, or bad checksum. `is_valid` checks the same framing and the
   checksum without throwing; it does not recompute a check character's value.
@@ -100,10 +108,13 @@ include path (see `tests/Makefile`).
 - These alphabets are not byte-aligned standards. `Base16::base16()` /
   `Base64::base64()` are not stock hex/base64; only the `rfc4648*` presets are.
   Don't "fix" them to match a standard library.
-- The codec encodes the numeric value, so leading zero bytes are not preserved as
-  leading characters the way Bitcoin base58check expects. This is by design. The
-  `rfc4648*` presets are the exception: they encode the input's bytes (`block_padding`),
-  so a leading zero byte is a leading zero digit and decode returns it.
+- The codec encodes the numeric value, so a leading zero byte is not a leading character unless the
+  alphabet says so, and two flags do. `block_padding`: the `rfc4648*` presets encode the input's
+  bytes, so a leading zero byte is a leading zero digit and decode returns it. `leading_zeros`:
+  `Base58::bitcoin()` and `ripple()` write one zero digit for each leading zero byte and the number of
+  the rest after them, and decode reverses it (Bitcoin's convention); no bytes are no text, and a
+  `uinteger_t` argument has no leading zero bytes. The flags never combine (the constructor asserts),
+  and `bitcoinchk()`, `ripplechk()` and every other preset keep the numeric text.
 - A block-padded alphabet takes its digit count from the input's byte count
   (`encode_value`), and `decode` takes the byte count from the digit count; a
   `uinteger_t` argument stands for its shortest byte string (one byte for zero). The digit

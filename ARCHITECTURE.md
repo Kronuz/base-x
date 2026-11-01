@@ -20,7 +20,8 @@ code path serves base2 through base66; only the alphabet and a few derived
 constants change. The cost is that the output is the numeric value, not a
 byte-aligned block encoding, so these alphabets are not drop-in replacements for
 standard hex or base64. The `rfc4648*` presets are: they encode the bytes (see
-Padding, check, and checksum), leading zero bytes included.
+Padding, check, and checksum), leading zero bytes included. `Base58::bitcoin()` and `ripple()` encode
+the number too, then restore the leading zero bytes as leading zero digits (`leading_zeros`, below).
 
 ## Alphabet tables
 
@@ -67,7 +68,7 @@ checksum sum is only accumulated for `with_checksum` alphabets.
 
 ## Padding, check, and checksum
 
-Three optional features hang off the flags, applied after the core digits are
+Four optional features hang off the flags, applied after the core digits are
 produced:
 
 - `block_padding` (RFC 4648 style). When set, `block_size` is nonzero and the encoder works
@@ -82,6 +83,20 @@ produced:
   `result >>= (bits & 7)`, stops the digits at the first padding character, and writes exactly that many
   bytes, zero bytes in front included. Digits past the last whole byte are dropped. This is the
   path the `rfc4648*` presets use to match the standard.
+- `leading_zeros` (Bitcoin style, never with `block_padding`: the constructor asserts). The number
+  is the input without its leading zero bytes, so it carries no length. `encode` counts those bytes,
+  `z`, with a scan that stops at the first nonzero one (a cost of `z` byte tests, and the number is built
+  from the bytes after them), converts the rest as usual, and inserts `z` zero digits ahead of its digits
+  before the characters are mapped. The padding, the checksum and the check character therefore see them
+  like any digit: they count in the length, and add nothing to the sum or the value. Input that is all
+  zeros is `z` zero digits, and no bytes are no text (the numeric alphabets write one zero digit for a
+  zero number and throw for no bytes). A `uinteger_t` argument is its shortest byte string, so it has
+  no leading zero bytes: zero is one zero digit and any other number its digits alone. `decode` counts
+  the leading zero digits among the collected digits (ignored characters are not digits, and a
+  translated look-alike of the zero digit is one), converts the digits after them, and writes that many
+  zero bytes ahead of the bytes of the number, none for zero. The `uinteger_t` and integral forms return
+  the number alone. `is_valid` is unchanged: a zero digit is a digit. `Base58::bitcoin()` and
+  `ripple()` carry the flag (the XRP Ledger writes its addresses the same way, with its own alphabet).
 - `with_check` appends a single check character: the value mod the full table
   size, drawn from the alphabet plus the extended set. Decoding
   recomputes it and throws if it disagrees.
@@ -126,7 +141,9 @@ The string-returning overloads turn the integer back into bytes with
 `uinteger_t::digits(result, 256)`, which writes the limbs big-endian into the result; a
 non-empty `result` is replaced, an empty one receives the bytes directly. In a block-padded
 alphabet the byte count is the digit count's (`count block_size / 8`), and the bytes are
-zero-padded in front to it, so leading zero bytes come back (a zero value is that many zero bytes).
+zero-padded in front to it, so leading zero bytes come back (a zero value is that many zero bytes). In a
+`leading_zeros` alphabet the digits after the leading zero digits go to `from_digits` (a text of zero
+digits is the value zero), and the result is a zero byte for each of them followed by the number's bytes.
 The integral overloads return the integer directly. Undoing the block-padding shift is skipped when the alphabet has none.
 
 ## Complexity
@@ -165,9 +182,10 @@ Let `n` be the input size in bytes and `m` the output length.
   `rfc4648*` presets do, via the block-padding path.
 - The whole value is materialized as a `uinteger_t`; there is no streaming over
   input that does not fit in memory.
-- Leading zero bytes encode as part of the integer value, not as fixed leading
-  characters, so the output is not interchangeable with byte-preserving base58
-  variants. The `rfc4648*` presets are byte-preserving.
+- `Base58::bitcoin()` and `ripple()` keep leading zero bytes as leading zero digits (`leading_zeros`); every
+  other alphabet but the `rfc4648*` presets encodes them as part of the integer value, not as fixed
+  leading characters, so its output is not interchangeable with byte-preserving base58 variants.
+  `bitcoinchk()` and `ripplechk()` are among them. Base58Check's double SHA-256 checksum is not here.
 - `decode` throws on bad input. `is_valid` screens alphabet, padding and checksum
   without throwing but does not recompute a check character (`crockfordchk`), so it
   does not rule out every `decode` exception.

@@ -17,6 +17,16 @@ A performance and correctness pass. Timings are at -O2 on Apple Silicon.
 - Bytes that are all zero encode as the zero digit alone in the check and checksum alphabets, as the
   value zero always did: `Base59::dubaluchk()` of one zero byte is `z` (it was `zN`, because
   uinteger_t parsed the byte to an untrimmed zero limb). Both texts decode to one zero byte.
+- `Base58::bitcoin()` and `Base58::ripple()` write each leading zero byte as one leading zero digit (`1` in
+  Bitcoin's alphabet, `r` in Ripple's) and read each leading zero digit back as a zero byte, as Bitcoin's
+  base58 and the XRP Ledger do, through a new `BaseX::leading_zeros` flag. The text of an input with leading
+  zero bytes changes: `"\0\0abc"` is `11ZiCa` (it was `ZiCa`) and `"\0\0"` is `11` (it was `1`). The decode
+  of a text that starts with the zero digit changes: `11ZiCa` is `"\0\0abc"` (it was `"abc"`) and `11` is two
+  zero bytes (it was one); `decode(encode(x))` is `x` for any bytes. An empty buffer encodes as the empty
+  text (it threw), and the empty text decodes to no bytes (it gave one zero byte). Input without a leading
+  zero byte encodes as before, and a `uinteger_t` argument (zero is `1`, `r`) and the integral and
+  `uinteger_t` forms of `decode`, which return the number, do not change. No other preset changes,
+  `bitcoinchk()` and `ripplechk()` included; they keep the flag off.
 - The RFC 4648 presets (`Base16::rfc4648()`, `Base32::rfc4648()`, `rfc4648hex()`, `Base64::rfc4648()`,
   `rfc4648url()`, `rfc4648url_unpadded()`) are byte-exact against Python's `base64` module: a leading
   zero byte is a leading zero digit and decodes back to a zero byte. The text used to keep 0 or 8 of them,

@@ -14,7 +14,12 @@ BaseX::ignore_case     // decode is case-insensitive
 BaseX::with_checksum   // append/verify a trailing checksum character
 BaseX::with_check      // append/verify a trailing check character
 BaseX::block_padding   // RFC 4648 style fixed-block padding
+BaseX::leading_zeros   // each leading zero byte is a leading zero digit (Bitcoin's base58)
 ```
+
+`leading_zeros` and `block_padding` do not combine (the constructor asserts). `Base58::bitcoin()`
+and `Base58::ripple()` have `leading_zeros`; no other preset does, `Base58::bitcoinchk()` and
+`ripplechk()` included.
 
 ## encode
 
@@ -35,7 +40,12 @@ an integer literal encodes that integer.
 The `rfc4648*` presets encode the bytes of a buffer: a leading zero byte is a leading zero
 digit (`Base64::rfc4648()` writes `AAAAAAAAAQ==` for six zero bytes and `0x01`, as Python's
 `base64.b64encode` does), and an empty buffer is the empty text. A `uinteger_t` stands for its
-shortest byte string, one byte for zero. The other alphabets encode the numeric value, which
+shortest byte string, one byte for zero. `Base58::bitcoin()` and `Base58::ripple()`
+(`leading_zeros`) write the Bitcoin way: a `0x00` byte at the start of the buffer is one leading
+zero digit (`1` in Bitcoin's alphabet, `r` in Ripple's), the other bytes are written as one number,
+and an empty buffer is the empty text (`"\0\0abc"` is `11ZiCa`, `"\0\0"` is `11`). A `uinteger_t`
+has no leading zero bytes: zero is the one zero digit, and any other number is its digits alone.
+The other alphabets encode the numeric value, which
 has no leading zero digits, and an empty buffer throws `std::invalid_argument`. An `rfc4648*`
 encode throws `std::length_error` when 8 times the byte count does not fit a `std::size_t`
 (512 MiB or more where it is 32 bits).
@@ -58,7 +68,11 @@ the original bytes; with an integral `Result` it returns the decoded integer. Th
 `rfc4648*` presets return exactly the bytes their digits hold, leading zero bytes
 included (eight bits of digits make a byte; the digits past the last whole byte, the
 dangling bits of base64 or the last digit of an odd count of hex digits, are dropped),
-and the integral and `uinteger_t` forms return the number. It
+and the integral and `uinteger_t` forms return the number. `Base58::bitcoin()` and
+`Base58::ripple()` return a zero byte for each digit at the start of the text (after the
+characters the alphabet skips), then the bytes of the number the rest spells; the empty text
+is no bytes, and a text of zero digits is that many zero bytes (`11` is two). The integral
+and `uinteger_t` forms return the number, so the leading zero digits carry no value there. It
 throws `std::invalid_argument` on an invalid character, a failed check digit, a
 failed checksum, or input shorter than the check and checksum characters its
 alphabet needs (an empty string for any `*chk` alphabet). When it throws on an
@@ -114,8 +128,8 @@ A selection of the built-in factories. Each lives on a struct named for its base
 |   32 | `Base32::rfc4648()`    | `ABCDEFGHIJKLMNOPQRSTUVWXYZ234567`
 |   36 | `Base36::base36()`     | `0123456789abcdefghijklmnopqrstuvwxyz`
 |   58 | `Base58::base58()`     | `0123456789ABCDEF...uv` (GMP order)
-|   58 | `Base58::bitcoin()`    | `123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz`
-|   58 | `Base58::ripple()`     | `rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz`
+|   58 | `Base58::bitcoin()`    | `123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz` (`leading_zeros`)
+|   58 | `Base58::ripple()`     | `rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz` (`leading_zeros`)
 |   58 | `Base58::flickr()`     | `123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ`
 |   59 | `Base59::base59()`     | `23456789abcdef...XYZ` (ambiguous chars translated)
 |   62 | `Base62::base62()`     | `0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz`
@@ -135,10 +149,13 @@ above. See the factory structs at the bottom of `base_x.hh` for the full list.
   `Base64::base64()` are not the same as stock hex or base64; they encode the
   whole input as one integer. Use the `rfc4648*` presets when you need standard,
   padded output; they are byte-exact against Python's `base64` module.
-- Because encoding goes through `uinteger_t`, a leading zero byte does not round
-  into a leading alphabet character the way Bitcoin base58check expects. These
-  alphabets encode the numeric value, not a fixed-width byte string; the `rfc4648*`
-  presets are the exception and keep every byte.
+- A leading zero byte becomes a leading alphabet character only in the `leading_zeros`
+  presets, `Base58::bitcoin()` and `Base58::ripple()` (Bitcoin's convention, which the
+  XRP Ledger shares): `decode(encode(x))` returns `x` for any bytes. The other alphabets
+  encode the numeric value, not a fixed-width byte string, so `"\0\0abc"` and `"abc"` have the
+  same text and decode returns `"abc"`; the `rfc4648*` presets keep every byte. Neither
+  `bitcoinchk()` nor `ripplechk()` has the flag, and neither is Base58Check (the checksum is
+  base-x's one character, not four bytes of a double SHA-256).
 - `decode` and the checked encoders throw `std::invalid_argument`. `is_valid` checks
   the alphabet, padding and checksum without throwing, but not a `with_check`
   character's value (`Base32::crockfordchk()`), so `decode` can still throw on text
