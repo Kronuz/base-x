@@ -77,12 +77,13 @@ include path (see `tests/Makefile`).
   `BASEX_NO_SIMD` turns them off, and CTest runs the test both ways.
 - `block_size` is nonzero only when `block_padding` is set. The RFC 4648 presets
   depend on this; the plain alphabets must keep it zero.
-- `leading_zeros` is read in two places, the byte `encode` (it counts the leading zero bytes and hands
-  `encode_value` the count) and `decode_value` (it counts the leading zero digits and returns the count,
-  which the `Result` form turns into zero bytes). The count goes in front of the digits before they are
-  mapped, so padding, checksum and check cover it. Alphabets without the flag ignore the count (the
-  `uinteger_t` form passes one for zero and nothing reads it) and skip the scans: their output is what
-  it was before the flag existed.
+- `leading_zeros` works where bytes become digits and back: the byte `encode` counts the leading zero
+  bytes and `encode_value` writes that many zero digits before the number's; `decode_value` counts the
+  leading zero digits and returns the count, which the `Result` form of `decode` turns into zero bytes.
+  The count goes in front of the digits before they are mapped, so padding, checksum and check cover
+  it. The constructor asserts the flag never combines with `block_padding`. Alphabets without the flag
+  skip the scans and ignore the count (the `uinteger_t` form passes one for zero and nothing reads it),
+  so their output does not depend on it.
 - `decode` and the checked encoders throw `std::invalid_argument` on bad input,
   bad check digit, or bad checksum. `is_valid` checks the same framing and the
   checksum without throwing; it does not recompute a check character's value.

@@ -43,7 +43,8 @@ digit (`Base64::rfc4648()` writes `AAAAAAAAAQ==` for six zero bytes and `0x01`, 
 shortest byte string, one byte for zero. `Base58::bitcoin()` and `Base58::ripple()`
 (`leading_zeros`) write the Bitcoin way: a `0x00` byte at the start of the buffer is one leading
 zero digit (`1` in Bitcoin's alphabet, `r` in Ripple's), the other bytes are written as one number,
-and an empty buffer is the empty text (`"\0\0abc"` is `11ZiCa`, `"\0\0"` is `11`). A `uinteger_t`
+and an empty buffer is the empty text (the bytes `00 00 61 62 63` are `11ZiCa`, two zero bytes are
+`11`). A `uinteger_t`
 has no leading zero bytes: zero is the one zero digit, and any other number is its digits alone.
 The other alphabets encode the numeric value, which
 has no leading zero digits, and an empty buffer throws `std::invalid_argument`. An `rfc4648*`
@@ -152,8 +153,8 @@ above. See the factory structs at the bottom of `base_x.hh` for the full list.
 - A leading zero byte becomes a leading alphabet character only in the `leading_zeros`
   presets, `Base58::bitcoin()` and `Base58::ripple()` (Bitcoin's convention, which the
   XRP Ledger shares): `decode(encode(x))` returns `x` for any bytes. The other alphabets
-  encode the numeric value, not a fixed-width byte string, so `"\0\0abc"` and `"abc"` have the
-  same text and decode returns `"abc"`; the `rfc4648*` presets keep every byte. Neither
+  encode the numeric value, not a fixed-width byte string, so the bytes `00 00 61 62 63` and
+  `61 62 63` have the same text and decode returns `61 62 63`; the `rfc4648*` presets keep every byte. Neither
   `bitcoinchk()` nor `ripplechk()` has the flag, and neither is Base58Check (the checksum is
   base-x's one character, not four bytes of a double SHA-256).
 - `decode` and the checked encoders throw `std::invalid_argument`. `is_valid` checks
