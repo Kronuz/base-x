@@ -395,7 +395,8 @@ public:
 BASEX_PRIVATE:
 	// Sets result to the number in the text and returns how many bytes it stands for in a block-padded
 	// alphabet, one for every 8 bits of digits, or how many leading zero bytes in one with leading_zeros,
-	// one for every leading zero digit (0 in the others). Throws, leaving result as it was, on bad text.
+	// one for every leading zero digit (0 in the others). Throws on bad text; result may then hold the
+	// value of digits whose check or checksum failed, so the public forms decode into a temporary.
 	std::size_t decode_value(uinteger_t& result, const char* encoded, std::size_t encoded_size) const {
 		std::int64_t sum = 0;
 		std::int64_t sumsz = 0;
@@ -497,7 +498,9 @@ BASEX_PRIVATE:
 
 public:
 	void decode(uinteger_t& result, const char* encoded, std::size_t encoded_size) const {
-		decode_value(result, encoded, encoded_size);
+		uinteger_t num;
+		decode_value(num, encoded, encoded_size);
+		result = std::move(num);
 	}
 
 	template <typename Result, typename = typename std::enable_if_t<uinteger_t::is_result<Result>::value>>

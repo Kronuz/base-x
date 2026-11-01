@@ -7,10 +7,6 @@ is one. Conversion work belongs in uinteger_t, whose
 
 ## Behavior
 
-- **A failed check leaves the `uinteger_t` written.** `decode(uinteger_t&, ...)` assigns the value
-  before it verifies the check and checksum characters, so on "Invalid check", "Invalid checksum" or a
-  bad character in those positions its argument holds the decoded value. The comment on
-  `decode_value` says it leaves the result as it was; the forms that return bytes or an integral do.
 - **Padding with a checksum disagrees with itself.** In an alphabet built with both `block_padding` and
   `with_checksum`, `encode` counts the padding characters in the checksum's length and `decode` and
   `is_valid` do not, so the text fails its own decode whenever padding is written (one byte `a` in a

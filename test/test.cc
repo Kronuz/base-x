@@ -932,6 +932,22 @@ int main() {
 		}
 	}
 
+	// decode into a uinteger_t leaves it as it was when the text fails its check or checksum.
+	{
+		struct Case { const BaseX& enc; std::string bad; };
+		std::string chk = Base32::crockfordchk().encode(1234567);  // a wrong check character
+		chk.back() = chk.back() == '0' ? '1' : '0';
+		std::string sum = Base58::base58chk().encode(1234567);     // a wrong checksum character
+		sum.back() = sum.back() == '1' ? '2' : '1';
+		for (const Case& c : {Case{Base32::crockfordchk(), chk}, Case{Base58::base58chk(), sum}}) {
+			uinteger_t value(42);
+			bool threw = false;
+			try { c.enc.decode(value, c.bad.data(), c.bad.size()); } catch (const std::invalid_argument&) { threw = true; }
+			assert(threw && value == 42);
+			if (!threw || value != 42) { std::fprintf(stderr, "decode wrote a uinteger_t it rejected\n"); return 1; }
+		}
+	}
+
 	std::printf("base-x OK: base58/base62/base16/base32/base64 round-trips + checksums passed\n");
 	return 0;
 }

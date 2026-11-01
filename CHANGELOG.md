@@ -63,6 +63,8 @@ A performance and correctness pass. Timings are at -O2 on Apple Silicon.
 
 ### Fixed
 
+- `decode` into a `uinteger_t` leaves it as it was when the text fails its check or checksum
+  character; it held the decoded value.
 - The RFC 4648 base32 and base64 presets misaligned every input of 32 bytes or more: 148 of
   240 random inputs differed from Python's `base64` module. All 240 match now ([c3965ec]).
 - The RFC 4648 presets dropped a zero leading digit at any size, so a small first byte lost

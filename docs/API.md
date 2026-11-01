@@ -80,10 +80,8 @@ is no bytes, and a text of zero digits is that many zero bytes (`11` is two). Th
 and `uinteger_t` forms return the number, so the leading zero digits carry no value there. It
 throws `std::invalid_argument` on an invalid character, a failed check digit, a
 failed checksum, or input shorter than the check and checksum characters its
-alphabet needs (an empty string for any `*chk` alphabet). When it throws, a byte or
-integral `result` is left as it was. The `uinteger_t` form assigns the value before it
-verifies the check and checksum characters, so when one of those fails (or is not a valid
-character) its `result` holds the decoded value.
+alphabet needs (an empty string for any `*chk` alphabet). When it throws, `result` is
+left as it was, in the byte, integral and `uinteger_t` forms alike.
 
 A character that is not a digit is invalid wherever it appears, a NUL byte and an
 extended character included (an extended character is valid only as a check
