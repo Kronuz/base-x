@@ -107,6 +107,8 @@ libbase58 and Firedancer and describes how to measure a change.
   alphabet, and the caveats.
 - [ARCHITECTURE.md](ARCHITECTURE.md): how the codec, check digits, and padding
   work.
+- [docs/OPEN-WORK.md](docs/OPEN-WORK.md): behavior open to change, the slow paths, and what the
+  tests do not reach.
 - [CHANGELOG.md](CHANGELOG.md): what changed, by date.
 - [AGENTS.md](AGENTS.md): repository map and traps.
 

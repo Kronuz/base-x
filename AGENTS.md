@@ -44,7 +44,9 @@ vendored here.
   measures, how to reproduce the README table, and the A/A and A/B protocol.
 - `CMakeLists.txt` — the `base_x` target (alias `base_x::base_x`).
 - `ARCHITECTURE.md` — encoding scheme, encode and decode through uinteger_t's
-  digit API, check/checksum/padding, complexity.
+  digit API, check/checksum/padding, complexity, and the measurements behind the table paths
+  and the decode order. `docs/OPEN-WORK.md` lists the behavior open to change, the slow paths
+  and what the tests do not reach.
 - `tests/` — the legacy googletest suite (`tests/testcases/tests.cc`, not built
   by CMake or CI) and its Makefile,
   kept for the broader vector coverage. The CMake/`test/` smoke test is the one
@@ -59,7 +61,8 @@ cmake -B build && cmake --build build && ctest --test-dir build
 ```
 
 The smoke test prints `base-x OK: ...` and exits 0 on success. It uses `assert`,
-so build without `NDEBUG`. The golden test does not: it checks in a Release build too, and prints
+so build without `NDEBUG`: a Release CTest build defines it, and `base_x` and `base_x_scalar`
+then pass without checking anything. The golden test does not: it checks in a Release build too, and prints
 `base-x golden OK: ...` (standalone: `c++ -std=c++17 -I. -I<uinteger_t dir> test/golden.cc -o
 /tmp/golden && /tmp/golden test/golden/encode.txt base_x.hh`). The full `tests/` suite needs
 googletest on the include path (see `tests/Makefile`).
@@ -145,6 +148,19 @@ googletest on the include path (see `tests/Makefile`).
   `BASEX_PUBLIC_IMPLEMENTATION` (`BASEX_PRIVATE` stands for `private`).
 - `ignore_case` affects decoding only. Encoding always emits the alphabet's own
   casing.
+- A string literal is an lvalue: `encode("\0\0abc")` takes the `std::string_view` overload and stops
+  at the first NUL. The `T (&&)[N]` overloads take only rvalue arrays. Tests and examples with binary
+  bytes pass a `std::string_view` with its size.
+- `encode` does not compile for a `std::vector` result: the padding step calls `result.append`, in
+  a run-time branch every `Result` compiles. `decode` into a vector works.
+- `decode_value` assigns its `uinteger_t` before it verifies the check and checksum characters, so
+  the `uinteger_t` form of `decode` leaves the value there when they fail; the byte and integral
+  forms decode into a local and stay clean. Keep that order in mind before moving a check.
+- The constructor's checks (the `leading_zeros` and `block_padding` pair, a padding character that
+  is a digit) are asserts, so an alphabet built against them under `NDEBUG` encodes wrong text
+  silently. An alphabet with both `block_padding` and `with_checksum` passes them and still fails its
+  own decode: `encode` counts the padding in the checksum's length and `decode` does not. No preset
+  combines either pair.
 - `base_x.hh` is versioned together with Xapiand's vendored copy under
   `Xapiand/src/`. When de-staling, diff against that copy; it is the more
   actively maintained one. Keep the MIT header intact when editing. (`uinteger_t`

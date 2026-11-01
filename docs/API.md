@@ -30,12 +30,15 @@ template <typename Result = std::string> Result encode(const uinteger_t& num) co
 template <typename Result = std::string> Result encode(const unsigned char* data, std::size_t size) const;
 template <typename Result = std::string> Result encode(const char* data, std::size_t size) const;
 template <typename Result = std::string> Result encode(std::string_view binary) const;
-template <typename Result, typename T, std::size_t N> Result encode(T (&&s)[N]) const;  // string literal
+template <typename Result, typename T, std::size_t N> Result encode(T (&&s)[N]) const;  // rvalue array
 ```
 
 `encode` takes binary input (a `uinteger_t`, a buffer, a `std::string_view`, or
-a string literal) and returns its text representation in this alphabet. Passing
-an integer literal encodes that integer.
+an rvalue array) and returns its text representation in this alphabet. Passing
+an integer literal encodes that integer. A string literal is an lvalue, so it takes the
+`std::string_view` form and ends at its first NUL byte: `encode("\0\0abc")` encodes no bytes. Pass
+binary data with its size. The `Result` of `encode` is a `std::basic_string`; a `std::vector`
+result compiles for `decode` only.
 
 The `rfc4648*` presets encode the bytes of a buffer: a leading zero byte is a leading zero
 digit (`Base64::rfc4648()` writes `AAAAAAAAAQ==` for six zero bytes and `0x01`, as Python's
@@ -65,7 +68,8 @@ void decode(uinteger_t& result, const char* encoded, std::size_t size) const;
 ```
 
 `decode` reverses `encode`. With `Result = std::string` (the default) it returns
-the original bytes; with an integral `Result` it returns the decoded integer. The
+the original bytes; with an integral `Result` it returns the decoded integer, truncated with no
+overflow error to the low bits that fit the type, at most one limb (64 bits by default). The
 `rfc4648*` presets return exactly the bytes their digits hold, leading zero bytes
 included (eight bits of digits make a byte; the digits past the last whole byte, the
 dangling bits of base64 or the last digit of an odd count of hex digits, are dropped),
@@ -76,8 +80,10 @@ is no bytes, and a text of zero digits is that many zero bytes (`11` is two). Th
 and `uinteger_t` forms return the number, so the leading zero digits carry no value there. It
 throws `std::invalid_argument` on an invalid character, a failed check digit, a
 failed checksum, or input shorter than the check and checksum characters its
-alphabet needs (an empty string for any `*chk` alphabet). When it throws on an
-invalid character, `result` is left as it was.
+alphabet needs (an empty string for any `*chk` alphabet). When it throws, a byte or
+integral `result` is left as it was. The `uinteger_t` form assigns the value before it
+verifies the check and checksum characters, so when one of those fails (or is not a valid
+character) its `result` holds the decoded value.
 
 A character that is not a digit is invalid wherever it appears, a NUL byte and an
 extended character included (an extended character is valid only as a check
