@@ -14,9 +14,11 @@ A performance and correctness pass. Timings are at -O2 on Apple Silicon.
 
 ### Changed
 
-- Bytes that are all zero encode as the zero digit alone in the check and checksum alphabets, as the
-  value zero always did: `Base59::dubaluchk()` of one zero byte is `z` (it was `zN`, because
-  uinteger_t parsed the byte to an untrimmed zero limb). Both texts decode to one zero byte.
+- Bytes that are all zero encode as the value zero does in the presets that write the numeric value:
+  one zero digit, and no check character after it. `Base16::base16()` of one zero byte is `0` and
+  `Base64::base64()`'s is `A` (both were the empty text), and `Base59::dubaluchk()`'s is `z` (it was
+  `zN`); uinteger_t parsed the byte to an untrimmed zero limb. The old and the new texts decode to
+  one zero byte.
 - `Base58::bitcoin()` and `Base58::ripple()` write each leading zero byte as one leading zero digit (`1` in
   Bitcoin's alphabet, `r` in Ripple's) and read each leading zero digit back as a zero byte, as Bitcoin's
   base58 and the XRP Ledger do, through a new `BaseX::leading_zeros` flag. The text of an input with leading
