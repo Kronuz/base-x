@@ -20,19 +20,20 @@ A performance and correctness pass. Timings are at -O2 on Apple Silicon.
   by limb alignment: six zero bytes then `0x01` gave `AQ==`, where Python gives `AAAAAAAAAQ==`. An empty
   buffer encodes as the empty text (it threw), and the empty text decodes to no bytes (it gave one zero
   byte). A `uinteger_t` argument encodes as its shortest byte string, one byte for zero: `0` is `AA==`
-  (it was `A`).
+  (it was `A`) ([2507a82]).
 - `Base16::rfc4648()` writes two digits per byte (`0x01` is `01`, it was `1`) and decodes by bytes: an odd
   count of digits drops the last one (`ABC` is `0xAB`; it was the number `0x0ABC`). The dangling bits of
-  base64 and base32 text were dropped already.
+  base64 and base32 text were dropped already ([2507a82]).
 - `decode` rejects text after the padding, as `is_valid` does: only padding and ignored characters may follow
   it, and a digit or any other character throws `std::invalid_argument` (`YWI=junk` decoded as `ab`). The
   result is left as it was. `is_valid` and `decode` now agree on every text, but for the value of a
-  `Base32::crockfordchk()` check character, which `is_valid` does not recompute.
+  `Base32::crockfordchk()` check character, which `is_valid` does not recompute ([d3d9f23]).
 - With a check or checksum character after padding, `decode` reads it after all the padding and ignored
-  characters before it; it read the first of them.
-- `decode` counts the bits of digits in `std::size_t`; the count was a 32-bit `unsigned`.
+  characters before it; it read the first of them ([d3d9f23]).
+- `decode` counts the bits of digits in `std::size_t`; the count was a 32-bit `unsigned`
+  ([2507a82]).
 - An RFC 4648 `encode` throws `std::length_error` when 8 times the byte count does not fit a
-  `std::size_t` (512 MiB or more on a 32-bit one); the digit count would wrap.
+  `std::size_t` (512 MiB or more on a 32-bit one); the digit count would wrap ([b468653]).
 - `encode` and `decode` run on uinteger_t's `digits()` and `from_digits()`, so a hand-copied
   `uinteger_t.hh` must have them. CMake pins uinteger_t 57ea9d5 ([1687e9a], [a3c0e0d]).
 - `is_valid` accepts `=` padding (`YWI=`) and the extended check characters `*~$=U` of
@@ -86,3 +87,6 @@ A performance and correctness pass. Timings are at -O2 on Apple Silicon.
 [ecbfb44]: https://github.com/Kronuz/base-x/commit/ecbfb44
 [a3c0e0d]: https://github.com/Kronuz/base-x/commit/a3c0e0d
 [979180c]: https://github.com/Kronuz/base-x/commit/979180c
+[2507a82]: https://github.com/Kronuz/base-x/commit/2507a82
+[d3d9f23]: https://github.com/Kronuz/base-x/commit/d3d9f23
+[b468653]: https://github.com/Kronuz/base-x/commit/b468653
