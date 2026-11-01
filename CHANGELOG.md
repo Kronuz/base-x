@@ -14,6 +14,9 @@ A performance and correctness pass. Timings are at -O2 on Apple Silicon.
 
 ### Changed
 
+- Bytes that are all zero encode as the zero digit alone in the check and checksum alphabets, as the
+  value zero always did: `Base59::dubaluchk()` of one zero byte is `z` (it was `zN`, because
+  uinteger_t parsed the byte to an untrimmed zero limb). Both texts decode to one zero byte.
 - The RFC 4648 presets (`Base16::rfc4648()`, `Base32::rfc4648()`, `rfc4648hex()`, `Base64::rfc4648()`,
   `rfc4648url()`, `rfc4648url_unpadded()`) are byte-exact against Python's `base64` module: a leading
   zero byte is a leading zero digit and decodes back to a zero byte. The text used to keep 0 or 8 of them,
