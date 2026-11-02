@@ -1,6 +1,0 @@
-x86_64
-Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz
-Apple clang version 17.0.0 (clang-1700.6.4.2)
-uinteger_t 6ba8ffa  base-x 9adf6bd
-17:12  up 29 days, 22:06, 5 users, load averages: 3.94 5.76 6.07
-17:34  up 29 days, 22:28, 5 users, load averages: 6.08 5.28 5.34

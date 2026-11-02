@@ -3,6 +3,16 @@
 What changed in base-x, newest first. There are no release tags: each section is dated
 and links the commits on `master`.
 
+## 2026-11-01
+
+### Changed
+
+- `docs/BENCHMARKING.md` pins the comparators: libbase58 v0.1.4 (`16c2527`) and Firedancer
+  v26.10.5 (`6286f99`). The benchmark binary is built as `basex_bench`, because `bench` is the
+  directory that holds the source.
+- The README tables come from the Apple M4 Pro and Intel Core i9-9980HK runs in
+  `bench/results/2026-11-01-*`.
+
 ## 2026-10-31
 
 A performance and correctness pass. Timings are at -O2 on Apple Silicon.

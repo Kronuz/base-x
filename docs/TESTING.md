@@ -132,20 +132,20 @@ In this order, each step on the change as it will land:
 
 ## Reproducing the experiments
 
-**The README table** comes from `bench/results/2026-10-31-apple-m1-pro/` (`basex.txt` and
-`basex_compare.txt`, unedited `bench` output, with `host.txt` and a `README.md` holding the build
-line), and the Intel paragraph from `bench/results/2026-10-31-intel-i9-9980hk/`, which adds
-`basex_compare_avx.txt` with Firedancer on AVX2. The table prints from the committed files:
+**The README tables** come from `bench/results/2026-11-01-apple-m4-pro/` and
+`bench/results/2026-11-01-intel-i9-9980hk/` (`basex.txt` and `basex2.txt`, two unedited
+`basex_bench` runs each, with `host.txt` and a `README.md` holding the build line). The table
+prints from the committed files:
 
 ```sh
-cd bench/results/2026-10-31-apple-m1-pro
-python3 ../../summarize.py --readme basex.txt basex_compare.txt
+cd bench/results/2026-11-01-apple-m4-pro
+python3 ../../summarize.py --readme basex.txt basex2.txt
 ```
 
 A new run needs libbase58 and Firedancer beside the build; BENCHMARKING.md (Reproducing the README
-table) has the clones, the build line and `./bench 32 64 256 compare`. `bench/results/` holds only
-the runs behind the README: the per-piece breakdowns in ARCHITECTURE.md and OPEN-WORK.md have no
-committed raw output.
+table) has the clones, the build line and `./basex_bench 32 64 256 compare`. `bench/results/` holds
+only the runs behind the README: the per-piece breakdowns in ARCHITECTURE.md and OPEN-WORK.md have
+no committed raw output.
 
 **The golden file** is the output of `base_x_golden --generate`, and the same on every platform: the
 inputs come from a generator written in the test, since `std::` distributions differ between

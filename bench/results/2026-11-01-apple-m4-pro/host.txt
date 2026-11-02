@@ -1,0 +1,6 @@
+arm64
+Apple M4 Pro
+macOS 26.7.2
+Apple clang version 17.0.0 (clang-1700.3.19.1)
+base-x 2d6835a, uinteger_t 291dab8, libbase58 v0.1.4 (16c2527), Firedancer v26.10.5 (6286f99)
+load averages before and after the runs (from basex.txt and basex2.txt): 7.7 to 7.9

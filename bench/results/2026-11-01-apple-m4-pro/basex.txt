@@ -1,0 +1,12 @@
+# basex: ./basex_bench 32 64 256 compare
+# 2026-11-01 15:43:36 PST, load averages: 7.74 8.34 8.71, 2d6835a Pin uinteger_t at 291dab8
+# ?? basex_bench
+# base-x bench, best of 7 rounds of at least 10 ms; ns per call
+# Apple LLVM 17.0.0 (clang-1700.3.19.1)
+# comparisons: classic, libbase58, firedancer
+
+bytes    |    enc bx  bx reuse   classic    libb58  firedncr |    dec bx   classic    libb58  firedncr |  bx reuse
+32       |      49.7      39.2     902.4    1239.3      41.5 |      54.3     433.4     179.3      44.4 |      35.7
+64       |      86.1      73.3    3053.8    5218.9      96.0 |      69.6    1573.7     590.8     105.3 |      53.3
+256      |     512.5     496.0   54815.6   91096.4         - |     372.4   22060.8    7760.6         - |     351.4
+# end 15:43:41, load averages: 7.84 8.35 8.71

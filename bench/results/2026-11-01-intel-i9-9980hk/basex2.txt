@@ -1,0 +1,13 @@
+# basex2: ./basex_bench 32 64 256 compare
+# 2026-11-01 15:58:24 PST, load averages: 7.28 7.56 7.81, aac8555 Add docs/TESTING.md: the checks, the CI matrix, the order before landing
+#  M docs/BENCHMARKING.md
+# ?? basex_bench
+# base-x bench, best of 7 rounds of at least 10 ms; ns per call
+# Apple LLVM 17.0.0 (clang-1700.6.4.2)
+# comparisons: classic, libbase58, firedancer
+
+bytes    |    enc bx  bx reuse   classic    libb58  firedncr |    dec bx   classic    libb58  firedncr |  bx reuse
+32       |     167.7     100.9     787.1    1652.1      71.8 |     204.9     374.0     233.7      93.4 |     149.8
+64       |     268.4     218.7    3372.1    6725.5     162.0 |     303.6    1548.7     787.2     294.7 |     250.3
+256      |    1512.9    1397.5   54015.7  104610.8         - |    1436.1   25945.4   14096.4         - |    1304.5
+# end 15:58:27, load averages: 8.14 7.73 7.87

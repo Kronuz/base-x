@@ -17,8 +17,8 @@ Linux.
 ## What `bench.cc` measures
 
 ```sh
-c++ -std=c++17 -O2 -I. -I"$UT" bench/bench.cc -o bench
-./bench [bytes...] [filters...]
+c++ -std=c++17 -O2 -I. -I"$UT" bench/bench.cc -o basex_bench
+./basex_bench [bytes...] [filters...]
 ```
 
 `UT` is a directory holding `uinteger_t.hh`: CMake fetches one into `build/_deps/uinteger_t-src`
@@ -44,16 +44,16 @@ in or does not take the size.
 
 ## Reproducing the README table
 
-The table is the best of two runs of `./bench 32 64 256 compare` on base58 against
-[libbase58](https://github.com/bitcoin/libbase58) (MIT) and
-[Firedancer](https://github.com/firedancer-io/firedancer)'s fixed-size codec (Apache-2.0), which
-takes 32 and 64 bytes only. Neither is vendored. Their versions change the numbers, so note each
-checkout's `git rev-parse --short HEAD` with the result. Leave out `-mavx2` and `-march` flags so
-Firedancer takes its portable path.
+The table is the best of two runs of `./basex_bench 32 64 256 compare` on base58 against
+[libbase58](https://github.com/bitcoin/libbase58) v0.1.4 (`16c2527`, MIT) and
+[Firedancer](https://github.com/firedancer-io/firedancer) v26.10.5 (`6286f99`, Apache-2.0), whose
+codec takes 32 and 64 bytes only. Neither is vendored. `bench.cc` checks every comparator's output
+against base-x's before it times a row, so a row only appears when the codecs agree. Leave out
+`-mavx2` and `-march` flags so Firedancer takes its portable path.
 
 ```sh
-git clone --depth 1 https://github.com/bitcoin/libbase58
-git clone --depth 1 --filter=blob:none --sparse https://github.com/firedancer-io/firedancer
+git clone --depth 1 --branch v0.1.4 https://github.com/bitcoin/libbase58
+git clone --depth 1 --branch v26.10.5 --filter=blob:none --sparse https://github.com/firedancer-io/firedancer
 git -C firedancer sparse-checkout set src/ballet src/util
 LIBBASE58=$PWD/libbase58 FIREDANCER=$PWD/firedancer UT=/path/to/uinteger_t
 
@@ -61,11 +61,11 @@ cc -O2 -c $LIBBASE58/base58.c -o libbase58.o
 cc -O2 -c $FIREDANCER/src/ballet/base58/fd_base58.c -o fd_base58.o
 c++ -std=c++17 -O2 -I. -I$UT -DHAVE_LIBBASE58 -I$LIBBASE58 \
     -DHAVE_FD_BASE58 -I$FIREDANCER/src/ballet/base58 \
-    bench/bench.cc libbase58.o fd_base58.o -o bench
+    bench/bench.cc libbase58.o fd_base58.o -o basex_bench
 
 mkdir -p out/readme
-./bench 32 64 256 compare > out/readme/run_1.txt
-./bench 32 64 256 compare > out/readme/run_2.txt
+./basex_bench 32 64 256 compare > out/readme/run_1.txt
+./basex_bench 32 64 256 compare > out/readme/run_2.txt
 python3 bench/summarize.py --readme out/readme
 ```
 
@@ -73,16 +73,17 @@ The last command prints the table in the README's format: the minimum of each ce
 runs, with `base-x` the `enc bx` and `dec bx` columns, `into a string` the reuse columns,
 `Firedancer` and `libbase58` theirs. `-DHAVE_LIBBASE58` and `-DHAVE_FD_BASE58` are independent;
 use either alone. Run it on a quiet machine (see below). The README's numbers come from an Apple
-M1 Pro with Apple clang at `-O2`; other compilers, library versions and CPUs give other absolute
-times, and the ratios to the other codecs are the part that carries over.
+M4 Pro and an Intel Core i9-9980HK with Apple clang 17 at `-O2`; other compilers, library
+versions and CPUs give other absolute times, and the ratios to the other codecs are the part
+that carries over.
 
 `bench/results/` holds the runs behind the README, one directory per machine and date:
-[`2026-10-31-apple-m1-pro`](../bench/results/2026-10-31-apple-m1-pro/) for the table and
-[`2026-10-31-intel-i9-9980hk`](../bench/results/2026-10-31-intel-i9-9980hk/) for the Intel
-paragraph. Each has the unedited `bench` output, the machine, compiler and commits, and the
-`summarize.py` command that prints the README table from the files. To record a measurement, copy
-the output directory there (its `host.txt` carries the machine and the commit) and add a
-`README.md` with the versions and the command; remove host names and paths first.
+[`2026-11-01-apple-m4-pro`](../bench/results/2026-11-01-apple-m4-pro/) and
+[`2026-11-01-intel-i9-9980hk`](../bench/results/2026-11-01-intel-i9-9980hk/).
+Each has the unedited `bench` output, the machine, compiler and commits, and the `summarize.py`
+command that prints the README table from the files. To record a measurement, copy the output
+directory there (its `host.txt` carries the machine and the commit) and add a `README.md` with
+the versions and the command; remove host names and paths first.
 
 Without `--readme`, `summarize.py out/readme` prints every row with its spread over the runs;
 `--sizes 32,64` and `--filter Base58::bitcoin` select rows, and `--stat median` takes the median

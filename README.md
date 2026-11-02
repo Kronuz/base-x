@@ -18,8 +18,8 @@ and hashes.
 - **Any alphabet.** Ready-made Bitcoin, Ripple, and Flickr base58, base62,
   Crockford base32, URL-safe base64, the RFC 4648 variants, and more; or bring
   your own.
-- **Fast.** A 32-byte key encodes in base58 in 74 ns and decodes in 72 on an Apple M1 Pro,
-  where libbase58 takes 2.1 µs and 0.5 µs ([Performance](#-performance)).
+- **Fast.** A 32-byte key encodes in base58 in 50 ns and decodes in 52 on an Apple M4 Pro,
+  where libbase58 takes 1.2 µs and 0.18 µs ([Performance](#-performance)).
 - **Check characters.** The `*chk()` alphabets append a check character that
   catches transcription errors; `is_valid` tests without decoding.
 - **Forgiving decoding.** Case-insensitive alphabets and translated look-alikes:
@@ -86,29 +86,51 @@ Not for:
 
 ## ⚡ Performance
 
-Nanoseconds per base58 call on an Apple M1 Pro (Apple clang 21, `-O2`), the best of seven
-rounds of [`bench/bench.cc`](bench/bench.cc), against [Firedancer](https://github.com/firedancer-io/firedancer)'s
-fixed-size codec (32 and 64 bytes only) and [libbase58](https://github.com/bitcoin/libbase58).
-`encode` and `decode` return a new `std::string`; the "into a string" column writes into one
-string that keeps its capacity, as the other codecs write into a caller's buffer.
+`bench/bench.cc` times base58 (`Base58::bitcoin()`) on random inputs of 32, 64 and 256 bytes, in
+nanoseconds per call (lower is faster), the best of seven rounds of at least 10 ms, then the best
+of two runs. `base-x` calls `encode` and `decode` as a user does, each returning a new
+`std::string`; `into a string` is the same codec writing into one string that keeps its capacity,
+as the other codecs write into a caller's buffer. `Firedancer` is the fixed-size base58 codec of
+[Firedancer](https://github.com/firedancer-io/firedancer) v26.10.5 (`6286f99`), which takes 32 and
+64 bytes only (`-` elsewhere), and `libbase58` is
+[libbase58](https://github.com/bitcoin/libbase58) v0.1.4 (`16c2527`). The benchmark checks every
+codec's output against base-x's before it times a row. Apple clang 17.0.0 with `-std=c++17 -O2`
+for `bench.cc` and `-O2` for the C codecs.
+
+Apple M4 Pro, macOS 26.7:
 
 | bytes | operation | base-x | into a string | Firedancer | libbase58 |
 |---:|---|---:|---:|---:|---:|
-| 32 | encode | 74.3 | 52.0 | 48.5 | 2,086 |
-| 32 | decode | 71.6 | 51.6 | 63.3 | 496 |
-| 64 | encode | 134 | 114 | 112 | 9,300 |
-| 64 | decode | 98.2 | 78.2 | 198 | 1,749 |
-| 256 | encode | 806 | 774 | - | 159,990 |
-| 256 | decode | 537 | 507 | - | 14,182 |
+| 32 | encode | 49.7 | 38.6 | 41.4 | 1,234 |
+| 32 | decode | 52.1 | 35.7 | 44.0 | 179 |
+| 64 | encode | 86.1 | 73.3 | 95.6 | 5,174 |
+| 64 | decode | 69.6 | 53.0 | 105 | 591 |
+| 256 | encode | 509 | 490 | - | 90,734 |
+| 256 | decode | 362 | 349 | - | 7,672 |
 
-On an Intel Core i9-9980HK (Apple clang 17, same flags) base-x encodes in about twice
-Firedancer's time (32 bytes: 144 ns against 70) and decodes 64 bytes in about the same time
-(277 ns against 287). The table is the best of two runs of the benchmark built with both
-comparators (shallow clones of their default branches; the build lines are in
-[docs/BENCHMARKING.md](docs/BENCHMARKING.md)):
+Intel Core i9-9980HK, macOS 15.8:
+
+| bytes | operation | base-x | into a string | Firedancer | libbase58 |
+|---:|---|---:|---:|---:|---:|
+| 32 | encode | 149 | 97.4 | 71.8 | 1,633 |
+| 32 | decode | 205 | 150 | 91.2 | 232 |
+| 64 | encode | 268 | 212 | 157 | 6,726 |
+| 64 | decode | 295 | 241 | 285 | 762 |
+| 256 | encode | 1,486 | 1,367 | - | 104,611 |
+| 256 | decode | 1,436 | 1,304 | - | 14,096 |
+
+At 32 bytes base-x as called takes 1.2 times Firedancer's time on the M4 Pro (0.8 to 0.9 writing
+into a string) and 2.1 to 2.2 times on the i9-9980HK (1.4 to 1.6 writing into a string). At 64
+bytes it takes 0.7 to 0.9 times Firedancer's time on the M4 Pro and 1.0 to 1.7 times on the
+i9-9980HK. Firedancer covers 32 and 64 bytes only, and libbase58 is slower than base-x at every
+size.
+
+The comparators are built from shallow clones of their tags; the build lines are in
+[docs/BENCHMARKING.md](docs/BENCHMARKING.md), and the unedited runs are in
+[bench/results/](bench/results/):
 
 ```sh
-./bench 32 64 256 compare
+./basex_bench 32 64 256 compare
 ```
 
 ## 📚 Documentation
