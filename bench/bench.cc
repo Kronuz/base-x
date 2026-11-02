@@ -1,7 +1,7 @@
 // Times base-x encode and decode, and compares base58 with other codecs when asked.
 //
 // Build (UT is a uinteger_t checkout; run from the repository root):
-//   c++ -std=c++17 -O2 -I. -I$UT bench/bench.cc -o bench
+//   c++ -std=c++17 -O2 -I. -I$UT bench/bench.cc -o basex_bench
 // With the comparisons. LIBBASE58 and FIREDANCER are checkouts of libbase58 (MIT) and
 // Firedancer (Apache-2.0); neither is vendored here. Leave out -mavx2 so Firedancer
 // takes its portable path:
@@ -9,9 +9,9 @@
 //   cc -O2 -c $FIREDANCER/src/ballet/base58/fd_base58.c -o fd_base58.o
 //   c++ -std=c++17 -O2 -I. -I$UT -DHAVE_LIBBASE58 -I$LIBBASE58 \
 //       -DHAVE_FD_BASE58 -I$FIREDANCER/src/ballet/base58 \
-//       bench/bench.cc libbase58.o fd_base58.o -o bench
+//       bench/bench.cc libbase58.o fd_base58.o -o basex_bench
 // (-DHAVE_LIBBASE58 and -DHAVE_FD_BASE58 are independent; use either alone.)
-// Run: ./bench [sizes...] [filters...], e.g. ./bench 32 64 compare
+// Run: ./basex_bench [sizes...] [filters...], e.g. ./basex_bench 32 64 compare
 // Sizes are input lengths in bytes (default 16 20 25 32 48 64 256 1024). A filter is a
 // substring of a codec name (base58, rfc4648, ...) or "compare" for the base58 table.
 //
