@@ -1,0 +1,8 @@
+if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  message(FATAL_ERROR "BUILD_FUZZING requires Clang with libFuzzer")
+endif()
+add_executable(base_x_fuzzer ../test/fuzz_decode.cc)
+target_link_libraries(base_x_fuzzer PRIVATE base_x)
+target_include_directories(base_x_fuzzer PRIVATE "${PROJECT_SOURCE_DIR}/test")
+target_compile_options(base_x_fuzzer PRIVATE -fsanitize=fuzzer,address,undefined -fno-sanitize-recover=all)
+target_link_options(base_x_fuzzer PRIVATE -fsanitize=fuzzer,address,undefined)

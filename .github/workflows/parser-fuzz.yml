@@ -1,0 +1,23 @@
+name: Parser fuzz smoke
+on:
+  push:
+    branches: [main, master, 'codex/parser-fuzz']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure instrumented parser and harness
+        run: >-
+          cmake -S . -B build-fuzz -DBUILD_FUZZING=ON
+          -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_CXX_FLAGS="-O1 -g -fsanitize=fuzzer-no-link,address,undefined -fno-sanitize-recover=all"
+      - name: Build
+        run: cmake --build build-fuzz --target base_x_fuzzer -j4
+      - name: Replay seeds and mutate for one minute
+        run: build-fuzz/fuzz/base_x_fuzzer fuzz/corpus -seed=20261113 -max_len=2048 -max_total_time=60 -print_final_stats=1
