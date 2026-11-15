@@ -135,6 +135,8 @@ The comparators are built from shallow clones of their tags; the build lines are
 
 ## 📚 Documentation
 
+- [Bytes You Can Type](https://kronuz.github.io/blog/base-x/):
+  the Familiars post on why it exists and how it works.
 - [docs/API.md](docs/API.md): `encode`, `decode`, `is_valid`, every built-in alphabet, and the
   caveats.
 - [ARCHITECTURE.md](ARCHITECTURE.md): how the codec, check characters and padding work.
